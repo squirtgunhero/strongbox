@@ -11,18 +11,32 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate, propertyAddress } from "@/lib/format";
 import { PROPERTY_TYPE_LABELS, type PropertyType } from "@/lib/types";
+import { ListSearch } from "@/components/list-search";
 
-export default async function PropertiesPage() {
+export default async function PropertiesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const sp = await searchParams;
   const supabase = await createClient();
 
-  const { data: properties } = await supabase
+  const { data: allProperties } = await supabase
     .from("properties")
     .select("*")
     .order("created_at", { ascending: false });
 
+  const search = sp.q?.trim().toLowerCase();
+  const properties = search
+    ? (allProperties || []).filter((p) => {
+        return propertyAddress(p).toLowerCase().includes(search);
+      })
+    : allProperties;
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Properties</h1>
+      <ListSearch placeholder="Search by address..." />
 
       <div className="rounded-md border">
         <Table>

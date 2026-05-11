@@ -10,18 +10,37 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { borrowerDisplayName, formatDate } from "@/lib/format";
+import { ListSearch } from "@/components/list-search";
 
-export default async function BorrowersPage() {
+export default async function BorrowersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const sp = await searchParams;
   const supabase = await createClient();
 
-  const { data: borrowers } = await supabase
+  const { data: allBorrowers } = await supabase
     .from("borrowers")
     .select("*")
     .order("created_at", { ascending: false });
 
+  const search = sp.q?.trim().toLowerCase();
+  const borrowers = search
+    ? (allBorrowers || []).filter((b) => {
+        const name = borrowerDisplayName(b).toLowerCase();
+        return (
+          name.includes(search) ||
+          (b.email?.toLowerCase() || "").includes(search) ||
+          (b.phone?.toLowerCase() || "").includes(search)
+        );
+      })
+    : allBorrowers;
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Borrowers</h1>
+      <ListSearch placeholder="Search by name, email, or phone..." />
 
       <div className="rounded-md border">
         <Table>
@@ -39,7 +58,9 @@ export default async function BorrowersPage() {
             {!borrowers?.length ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                  No borrowers yet. They are created when you create a loan.
+                  {search
+                    ? "No borrowers match your search."
+                    : "No borrowers yet. They are created when you create a loan."}
                 </TableCell>
               </TableRow>
             ) : (

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { queueNotification } from "@/lib/notifications";
 
 export async function createLoan(formData: FormData) {
   const supabase = await createClient();
@@ -165,6 +166,60 @@ export async function updateLoanStatus(loanId: string, newStatus: string) {
     new_values: { status: newStatus },
     performed_by: user.id,
   });
+
+  // Borrower notifications on key transitions
+  if (["approved", "funded", "defaulted"].includes(newStatus)) {
+    const { data: borrowerData } = await supabase
+      .from("loans")
+      .select(`
+        loan_borrowers(
+          is_primary,
+          borrower:borrowers(email, first_name, last_name, entity_name, borrower_type)
+        )
+      `)
+      .eq("id", loanId)
+      .single<{
+        loan_borrowers: {
+          is_primary: boolean;
+          borrower: {
+            email: string | null;
+            first_name: string | null;
+            last_name: string | null;
+            entity_name: string | null;
+            borrower_type: string;
+          };
+        }[];
+      }>();
+
+    const primary = borrowerData?.loan_borrowers?.find((lb) => lb.is_primary);
+    if (primary?.borrower?.email) {
+      const messages: Record<string, { subject: string; body: string }> = {
+        approved: {
+          subject: "Your loan has been approved",
+          body: "Your loan application has been approved. Please review the term sheet and prepare to close.",
+        },
+        funded: {
+          subject: "Your loan has been funded",
+          body: "Your loan has been funded. Funds have been wired to closing. Your servicing begins now.",
+        },
+        defaulted: {
+          subject: "Important: Your loan is in default",
+          body: "Your loan has been marked in default. Please contact your loan officer immediately to discuss options.",
+        },
+      };
+      const msg = messages[newStatus];
+      if (msg) {
+        await queueNotification(supabase, {
+          channel: "email",
+          recipientEmail: primary.borrower.email,
+          subject: msg.subject,
+          body: msg.body,
+          eventType: `loan.${newStatus}`,
+          relatedLoanId: loanId,
+        });
+      }
+    }
+  }
 
   revalidatePath(`/admin/loans/${loanId}`);
   revalidatePath("/admin/loans");

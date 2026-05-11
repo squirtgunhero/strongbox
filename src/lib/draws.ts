@@ -7,6 +7,7 @@ import {
   validateDrawAmount,
   requiresDualApproval,
 } from "@/lib/calculations/holdback";
+import { queueNotification } from "@/lib/notifications";
 
 export async function requestDraw(loanId: string, formData: FormData) {
   const supabase = await createClient();
@@ -246,6 +247,31 @@ export async function disburseDraw(drawId: string) {
     new_values: { amount: draw.approved_amount },
     performed_by: user.id,
   });
+
+  // Notify borrower
+  const { data: borrowerData } = await supabase
+    .from("loans")
+    .select(`
+      loan_borrowers(
+        is_primary,
+        borrower:borrowers(email)
+      )
+    `)
+    .eq("id", draw.loan_id)
+    .single<{
+      loan_borrowers: { is_primary: boolean; borrower: { email: string | null } }[];
+    }>();
+  const primary = borrowerData?.loan_borrowers?.find((lb) => lb.is_primary);
+  if (primary?.borrower?.email) {
+    await queueNotification(supabase, {
+      channel: "email",
+      recipientEmail: primary.borrower.email,
+      subject: `Draw of $${Number(draw.approved_amount).toLocaleString()} disbursed`,
+      body: `Your draw request has been disbursed. Funds should arrive in your account within 1-3 business days.`,
+      eventType: "draw.disbursed",
+      relatedLoanId: draw.loan_id,
+    });
+  }
 
   revalidatePath(`/admin/loans/${draw.loan_id}`);
   revalidatePath("/admin/draws");

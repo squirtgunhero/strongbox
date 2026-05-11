@@ -12,17 +12,36 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { Plus } from "lucide-react";
+import { ListSearch } from "@/components/list-search";
 
-export default async function InvestorsPage() {
+export default async function InvestorsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const sp = await searchParams;
   const supabase = await createClient();
 
-  const { data: investors } = await supabase
+  const { data: allInvestors } = await supabase
     .from("investors")
     .select(`
       *,
       positions:investor_positions(amount)
     `)
     .order("created_at", { ascending: false });
+
+  const search = sp.q?.trim().toLowerCase();
+  const investors = search
+    ? (allInvestors || []).filter((i) => {
+        const name = (
+          i.investor_type === "entity" ? i.entity_name : i.full_name
+        ) || "";
+        return (
+          name.toLowerCase().includes(search) ||
+          (i.email?.toLowerCase() || "").includes(search)
+        );
+      })
+    : allInvestors;
 
   return (
     <div className="space-y-6">
@@ -36,6 +55,8 @@ export default async function InvestorsPage() {
           New Investor
         </Button>
       </div>
+
+      <ListSearch placeholder="Search by name or email..." />
 
       <div className="rounded-md border">
         <Table>

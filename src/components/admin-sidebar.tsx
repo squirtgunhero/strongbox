@@ -15,6 +15,7 @@ import {
   Briefcase,
   BarChart3,
   ShieldCheck,
+  Bell,
 } from "lucide-react";
 import {
   Sidebar,
@@ -38,6 +39,7 @@ const navItems = [
   { title: "Investors", href: "/admin/investors", icon: Briefcase },
   { title: "Properties", href: "/admin/properties", icon: Building2 },
   { title: "Reports", href: "/admin/reports", icon: BarChart3 },
+  { title: "Notifications", href: "/admin/notifications", icon: Bell },
   { title: "Audit Log", href: "/admin/audit", icon: ShieldCheck },
   { title: "Settings", href: "/admin/settings", icon: Settings },
 ];

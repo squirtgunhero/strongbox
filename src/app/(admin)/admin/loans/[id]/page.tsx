@@ -376,7 +376,25 @@ export default async function LoanDetailPage({
           <CardTitle className="text-sm">Payments</CardTitle>
           <div className="flex gap-2">
             <AddLateFee loanId={loan.id} />
-            <RecordPayment loanId={loan.id} />
+            <RecordPayment
+              loanId={loan.id}
+              openIntents={((paymentIntents || []) as unknown as {
+                id: string;
+                amount: number;
+                method: string;
+                sent_date: string;
+                reference_number: string | null;
+                status: string;
+              }[])
+                .filter((p) => ["submitted", "verified"].includes(p.status))
+                .map((p) => ({
+                  id: p.id,
+                  amount: Number(p.amount),
+                  method: p.method,
+                  sent_date: p.sent_date,
+                  reference_number: p.reference_number,
+                }))}
+            />
           </div>
         </CardHeader>
         <CardContent>

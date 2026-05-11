@@ -21,8 +21,23 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { recordPayment } from "./payment-actions";
 import { Plus } from "lucide-react";
+import { formatCurrency, formatDate } from "@/lib/format";
 
-export function RecordPayment({ loanId }: { loanId: string }) {
+interface OpenIntent {
+  id: string;
+  amount: number;
+  method: string;
+  sent_date: string;
+  reference_number: string | null;
+}
+
+export function RecordPayment({
+  loanId,
+  openIntents = [],
+}: {
+  loanId: string;
+  openIntents?: OpenIntent[];
+}) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -88,6 +103,29 @@ export function RecordPayment({ loanId }: { loanId: string }) {
               <Input id="received_date" name="received_date" type="date" />
             </div>
           </div>
+          {openIntents.length > 0 && (
+            <div className="space-y-2">
+              <Label>Match Pending Notice</Label>
+              <Select name="match_intent_id" defaultValue="none">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No match</SelectItem>
+                  {openIntents.map((i) => (
+                    <SelectItem key={i.id} value={i.id}>
+                      {formatCurrency(i.amount)} · {i.method} · sent{" "}
+                      {formatDate(i.sent_date)}
+                      {i.reference_number ? ` · ${i.reference_number}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Linking will mark the borrower&apos;s notice as cleared.
+              </p>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
             <Textarea id="notes" name="notes" rows={2} />

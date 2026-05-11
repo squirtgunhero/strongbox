@@ -20,6 +20,7 @@ import {
 } from "@/lib/format";
 import { LOAN_STATUS_LABELS, type LoanStatus } from "@/lib/types";
 import { ChevronLeft } from "lucide-react";
+import { InsuranceDisplay } from "@/app/(admin)/admin/loans/[id]/insurance-display";
 
 export default async function InvestorLoanDetail({
   params,
@@ -132,6 +133,21 @@ export default async function InvestorLoanDetail({
           </CardContent>
         </Card>
       </div>
+
+      {["funded", "active", "defaulted"].includes(loan.status) && (
+        <InsuranceDisplay
+          insurance={{
+            insurance_carrier: loan.insurance_carrier ?? null,
+            insurance_policy_number: loan.insurance_policy_number ?? null,
+            insurance_coverage_amount: loan.insurance_coverage_amount ?? null,
+            insurance_expiration_date: loan.insurance_expiration_date ?? null,
+            insurance_agent_name: loan.insurance_agent_name ?? null,
+            insurance_agent_email: loan.insurance_agent_email ?? null,
+            insurance_agent_phone: loan.insurance_agent_phone ?? null,
+            insurance_updated_at: loan.insurance_updated_at ?? null,
+          }}
+        />
+      )}
 
       <Card>
         <CardHeader>

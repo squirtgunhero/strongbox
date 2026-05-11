@@ -193,5 +193,25 @@ export async function recordPayment(loanId: string, formData: FormData) {
     performed_by: user.id,
   });
 
+  // Optionally link to a borrower payment intent and mark it cleared
+  const matchIntentId = formData.get("match_intent_id") as string;
+  if (matchIntentId && matchIntentId !== "none" && insertedPayment) {
+    await supabase
+      .from("payment_intents")
+      .update({
+        status: "cleared",
+        matched_payment_id: insertedPayment.id,
+      })
+      .eq("id", matchIntentId);
+
+    await supabase.from("audit_log").insert({
+      table_name: "payment_intents",
+      record_id: matchIntentId,
+      action: "status_change",
+      new_values: { status: "cleared", matched_payment_id: insertedPayment.id },
+      performed_by: user.id,
+    });
+  }
+
   revalidatePath(`/admin/loans/${loanId}`);
 }

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import twilio from "twilio";
 
 interface QueueArgs {
   channel?: "email" | "sms" | "in_app";
@@ -18,6 +19,29 @@ const resend = process.env.RESEND_API_KEY
 
 const FROM_EMAIL =
   process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+
+const twilioClient =
+  process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
+    ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+    : null;
+const TWILIO_FROM_PHONE = process.env.TWILIO_FROM_PHONE || "";
+
+async function sendSms(
+  to: string,
+  body: string
+): Promise<{ error?: string }> {
+  if (!twilioClient || !TWILIO_FROM_PHONE) return { error: "Twilio not configured" };
+  try {
+    await twilioClient.messages.create({
+      from: TWILIO_FROM_PHONE,
+      to,
+      body,
+    });
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
 
 /**
  * Queue a notification and attempt immediate delivery.
@@ -53,29 +77,32 @@ export async function queueNotification(
     return;
   }
 
-  // SMS not wired yet; in-app is read directly from the table
-  if (channel !== "email") return;
-  if (!args.recipientEmail) return;
-  if (!resend) {
-    // No API key — leave pending for later batch send
-    return;
-  }
+  // in_app is read directly from the table — no external delivery
+  if (channel === "in_app") return;
+
+  let sendError: string | null = null;
 
   try {
-    const { error: sendError } = await resend.emails.send({
-      from: FROM_EMAIL,
-      to: args.recipientEmail,
-      subject: args.subject,
-      text: args.body,
-    });
+    if (channel === "email") {
+      if (!args.recipientEmail) return;
+      if (!resend) return; // no provider configured — leave pending
+      const { error } = await resend.emails.send({
+        from: FROM_EMAIL,
+        to: args.recipientEmail,
+        subject: args.subject,
+        text: args.body,
+      });
+      sendError = error ? error.message || String(error) : null;
+    } else if (channel === "sms") {
+      if (!args.recipientPhone) return;
+      const result = await sendSms(args.recipientPhone, args.body);
+      sendError = result.error || null;
+    }
 
     if (sendError) {
       await supabase
         .from("notifications")
-        .update({
-          status: "failed",
-          failure_reason: sendError.message || String(sendError),
-        })
+        .update({ status: "failed", failure_reason: sendError })
         .eq("id", row.id);
     } else {
       await supabase
@@ -105,13 +132,11 @@ export async function sendPendingNotifications(
   supabase: SupabaseClient,
   limit = 50
 ): Promise<{ sent: number; failed: number }> {
-  if (!resend) return { sent: 0, failed: 0 };
-
   const { data: pending } = await supabase
     .from("notifications")
-    .select("id, channel, recipient_email, subject, body")
+    .select("id, channel, recipient_email, recipient_phone, subject, body")
     .eq("status", "pending")
-    .eq("channel", "email")
+    .in("channel", ["email", "sms"])
     .order("created_at", { ascending: true })
     .limit(limit);
 
@@ -119,27 +144,43 @@ export async function sendPendingNotifications(
   let failed = 0;
 
   for (const n of pending || []) {
-    if (!n.recipient_email) {
+    // Skip if provider not configured for this channel
+    if (n.channel === "email" && !resend) continue;
+    if (n.channel === "sms" && !twilioClient) continue;
+
+    const missingRecipient =
+      (n.channel === "email" && !n.recipient_email) ||
+      (n.channel === "sms" && !n.recipient_phone);
+    if (missingRecipient) {
       await supabase
         .from("notifications")
-        .update({ status: "skipped", failure_reason: "no recipient email" })
+        .update({
+          status: "skipped",
+          failure_reason: `no recipient ${n.channel === "email" ? "email" : "phone"}`,
+        })
         .eq("id", n.id);
       continue;
     }
+
+    let errorMsg: string | null = null;
     try {
-      const { error } = await resend.emails.send({
-        from: FROM_EMAIL,
-        to: n.recipient_email,
-        subject: n.subject,
-        text: n.body,
-      });
-      if (error) {
+      if (n.channel === "email") {
+        const { error } = await resend!.emails.send({
+          from: FROM_EMAIL,
+          to: n.recipient_email!,
+          subject: n.subject,
+          text: n.body,
+        });
+        errorMsg = error ? error.message || String(error) : null;
+      } else {
+        const result = await sendSms(n.recipient_phone!, n.body);
+        errorMsg = result.error || null;
+      }
+
+      if (errorMsg) {
         await supabase
           .from("notifications")
-          .update({
-            status: "failed",
-            failure_reason: error.message || String(error),
-          })
+          .update({ status: "failed", failure_reason: errorMsg })
           .eq("id", n.id);
         failed++;
       } else {

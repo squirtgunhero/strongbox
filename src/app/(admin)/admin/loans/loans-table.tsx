@@ -22,7 +22,7 @@ import {
 import { formatCurrency, formatRate, formatDate } from "@/lib/format";
 import { LOAN_STATUS_LABELS, type LoanStatus } from "@/lib/types";
 import { SortableTH } from "@/components/sortable-th";
-import { bulkAssignOfficer } from "./bulk-actions";
+import { bulkAssignOfficer, bulkChangeStatus } from "./bulk-actions";
 import { toast } from "sonner";
 
 const statusVariant: Record<LoanStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -112,6 +112,29 @@ export function LoansTable({
     }
   }
 
+  async function handleBulkStatus(newStatus: string) {
+    if (!someSelected) return;
+    setPending(true);
+    try {
+      const result = await bulkChangeStatus(
+        Array.from(selected),
+        newStatus
+      );
+      if (result.failures.length === 0) {
+        toast.success(`Updated ${result.succeeded} loans`);
+      } else {
+        toast.warning(
+          `${result.succeeded} updated, ${result.failures.length} failed (e.g. ${result.failures[0]?.error})`
+        );
+      }
+      setSelected(new Set());
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setPending(false);
+    }
+  }
+
   return (
     <div className="space-y-3">
       {someSelected && (
@@ -119,8 +142,8 @@ export function LoansTable({
           <span className="text-sm font-medium">
             {selected.size} selected
           </span>
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Assign officer:</span>
+          <div className="ml-auto flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground">Assign:</span>
             <Select
               onValueChange={(v) => {
                 if (!v || typeof v !== "string") return;
@@ -129,13 +152,32 @@ export function LoansTable({
               disabled={pending}
             >
               <SelectTrigger className="h-7 w-40 text-xs">
-                <SelectValue placeholder="Choose..." />
+                <SelectValue placeholder="Officer..." />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="unassigned">Unassigned</SelectItem>
                 {staff.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">Move to:</span>
+            <Select
+              onValueChange={(v) => {
+                if (!v || typeof v !== "string") return;
+                handleBulkStatus(v);
+              }}
+              disabled={pending}
+            >
+              <SelectTrigger className="h-7 w-40 text-xs">
+                <SelectValue placeholder="Status..." />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(LOAN_STATUS_LABELS) as LoanStatus[]).map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {LOAN_STATUS_LABELS[s]}
                   </SelectItem>
                 ))}
               </SelectContent>

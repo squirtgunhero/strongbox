@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { updateLoanStatus } from "./actions";
 
 export async function bulkAssignOfficer(
   loanIds: string[],
@@ -33,4 +34,28 @@ export async function bulkAssignOfficer(
 
   revalidatePath("/admin/loans");
   return { count: loanIds.length };
+}
+
+export async function bulkChangeStatus(loanIds: string[], newStatus: string) {
+  if (loanIds.length === 0) throw new Error("No loans selected");
+
+  let succeeded = 0;
+  const failures: { loanId: string; error: string }[] = [];
+
+  for (const id of loanIds) {
+    try {
+      // Reuse the single-loan action so conditions check + audit + notifications
+      // all run consistently.
+      await updateLoanStatus(id, newStatus);
+      succeeded++;
+    } catch (e) {
+      failures.push({
+        loanId: id,
+        error: e instanceof Error ? e.message : "Failed",
+      });
+    }
+  }
+
+  revalidatePath("/admin/loans");
+  return { succeeded, failures };
 }

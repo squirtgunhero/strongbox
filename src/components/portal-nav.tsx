@@ -9,6 +9,7 @@ const links = [
   { href: "/portal/payments", label: "Payments" },
   { href: "/portal/documents", label: "Documents" },
   { href: "/portal/notifications", label: "Notifications" },
+  { href: "/portal/profile", label: "Profile" },
 ];
 
 export function PortalNav() {

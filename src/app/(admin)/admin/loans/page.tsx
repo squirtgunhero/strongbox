@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { LoansFilter } from "./loans-filter";
 import { LoansTable } from "./loans-table";
+import { ExportButton } from "./export-button";
 import { Plus } from "lucide-react";
 
 export default async function LoansPage({
@@ -144,12 +145,15 @@ export default async function LoansPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Loans</h1>
-        <Button nativeButton={false} render={<Link href="/admin/loans/new" />}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Loan
-        </Button>
+        <div className="flex gap-2">
+          <ExportButton />
+          <Button nativeButton={false} render={<Link href="/admin/loans/new" />}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Loan
+          </Button>
+        </div>
       </div>
 
       <LoansFilter staff={staff || []} />

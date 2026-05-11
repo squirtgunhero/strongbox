@@ -1,8 +1,9 @@
+import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { toCSV } from "@/lib/calculations/reports";
 import { borrowerDisplayName } from "@/lib/format";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -18,7 +19,9 @@ export async function GET() {
     return new Response("Forbidden", { status: 403 });
   }
 
-  const { data: loans } = await supabase
+  // Apply the same filters as the loans list page (status, officer)
+  const sp = request.nextUrl.searchParams;
+  let query = supabase
     .from("loans")
     .select(`
       id,
@@ -35,6 +38,22 @@ export async function GET() {
       property:properties(address_street, address_city, address_state, address_zip),
       loan_borrowers(is_primary, borrower:borrowers(*))
     `);
+
+  const status = sp.get("status");
+  if (status && status !== "all") query = query.eq("status", status);
+
+  const officer = sp.get("officer");
+  if (officer && officer !== "all") {
+    if (officer === "unassigned") {
+      query = query.is("loan_officer_id", null);
+    } else {
+      query = query.eq("loan_officer_id", officer);
+    }
+  } else if (sp.get("mine") === "1") {
+    query = query.eq("loan_officer_id", user.id);
+  }
+
+  const { data: loans } = await query;
 
   // Supabase typegen treats single-object relations as arrays; cast to a loose shape.
   type Row = {

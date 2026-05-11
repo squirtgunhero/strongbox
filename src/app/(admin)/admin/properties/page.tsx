@@ -12,19 +12,37 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate, propertyAddress } from "@/lib/format";
 import { PROPERTY_TYPE_LABELS, type PropertyType } from "@/lib/types";
 import { PropertiesFilter } from "./properties-filter";
+import { SortableTH } from "@/components/sortable-th";
 
 export default async function PropertiesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; state?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    state?: string;
+    sort?: string;
+    dir?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
 
+  const SORTABLE_FIELDS = [
+    "created_at",
+    "as_is_value",
+    "after_repair_value",
+    "rehab_budget",
+    "address_state",
+  ];
+  const dbSort = SORTABLE_FIELDS.includes(sp.sort || "")
+    ? sp.sort!
+    : "created_at";
+  const ascending = sp.dir === "asc";
+
   const { data: allProperties } = await supabase
     .from("properties")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order(dbSort, { ascending, nullsFirst: false });
 
   const search = sp.q?.trim().toLowerCase();
   const stateFilter = sp.state?.toUpperCase();
@@ -54,10 +72,10 @@ export default async function PropertiesPage({
             <TableRow>
               <TableHead>Address</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead className="text-right">As-Is Value</TableHead>
-              <TableHead className="text-right">ARV</TableHead>
-              <TableHead className="text-right">Rehab Budget</TableHead>
-              <TableHead>Created</TableHead>
+              <SortableTH field="as_is_value" align="right">As-Is Value</SortableTH>
+              <SortableTH field="after_repair_value" align="right">ARV</SortableTH>
+              <SortableTH field="rehab_budget" align="right">Rehab Budget</SortableTH>
+              <SortableTH field="created_at">Created</SortableTH>
             </TableRow>
           </TableHeader>
           <TableBody>

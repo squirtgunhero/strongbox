@@ -11,8 +11,14 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { ytdReturn } from "@/lib/calculations/distributions";
+import { YearFilter } from "@/components/year-filter";
 
-export default async function InvestorDistributionsPage() {
+export default async function InvestorDistributionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string }>;
+}) {
+  const sp = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -44,19 +50,27 @@ export default async function InvestorDistributionsPage() {
     new Date().toISOString().split("T")[0]
   );
 
-  const sorted = (investor.distributions || [])
-    .slice()
-    .sort(
-      (
-        a: { distribution_date: string },
-        b: { distribution_date: string }
-      ) => b.distribution_date.localeCompare(a.distribution_date)
-    );
+  const allDists = (investor.distributions || []) as {
+    amount: number;
+    distribution_date: string;
+    loan_id: string;
+  }[];
 
-  const total = sorted.reduce(
-    (s: number, d: { amount: number }) => s + Number(d.amount),
-    0
-  );
+  // Distinct years (sorted desc) for the filter dropdown
+  const years = Array.from(
+    new Set(allDists.map((d) => parseInt(d.distribution_date.slice(0, 4))))
+  ).sort((a, b) => b - a);
+
+  const yearFilter = sp.year && sp.year !== "all" ? sp.year : null;
+  const filtered = yearFilter
+    ? allDists.filter((d) => d.distribution_date.startsWith(yearFilter))
+    : allDists;
+
+  const sorted = filtered
+    .slice()
+    .sort((a, b) => b.distribution_date.localeCompare(a.distribution_date));
+
+  const total = sorted.reduce((s, d) => s + Number(d.amount), 0);
 
   return (
     <div className="space-y-6">
@@ -72,8 +86,11 @@ export default async function InvestorDistributionsPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">All Distributions</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-sm">
+            {yearFilter ? `${yearFilter} Distributions` : "All Distributions"}
+          </CardTitle>
+          {years.length > 1 && <YearFilter years={years} />}
         </CardHeader>
         <CardContent>
           {sorted.length === 0 ? (
@@ -90,31 +107,22 @@ export default async function InvestorDistributionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sorted.map(
-                  (
-                    d: {
-                      amount: number;
-                      distribution_date: string;
-                      loan_id: string;
-                    },
-                    idx: number
-                  ) => (
-                    <TableRow key={idx}>
-                      <TableCell>{formatDate(d.distribution_date)}</TableCell>
-                      <TableCell>
-                        <Link
-                          href={`/investor/loans/${d.loan_id}`}
-                          className="hover:underline text-xs font-mono"
-                        >
-                          {d.loan_id.slice(0, 8)}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(d.amount)}
-                      </TableCell>
-                    </TableRow>
-                  )
-                )}
+                {sorted.map((d, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell>{formatDate(d.distribution_date)}</TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/investor/loans/${d.loan_id}`}
+                        className="hover:underline text-xs font-mono"
+                      >
+                        {d.loan_id.slice(0, 8)}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(d.amount)}
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}

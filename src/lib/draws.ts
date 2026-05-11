@@ -254,18 +254,22 @@ export async function disburseDraw(drawId: string) {
     .select(`
       loan_borrowers(
         is_primary,
-        borrower:borrowers(email)
+        borrower:borrowers(email, user_id)
       )
     `)
     .eq("id", draw.loan_id)
     .single<{
-      loan_borrowers: { is_primary: boolean; borrower: { email: string | null } }[];
+      loan_borrowers: {
+        is_primary: boolean;
+        borrower: { email: string | null; user_id: string | null };
+      }[];
     }>();
   const primary = borrowerData?.loan_borrowers?.find((lb) => lb.is_primary);
   if (primary?.borrower?.email) {
     await queueNotification(supabase, {
       channel: "email",
       recipientEmail: primary.borrower.email,
+      recipientUserId: primary.borrower.user_id,
       subject: `Draw of $${Number(draw.approved_amount).toLocaleString()} disbursed`,
       body: `Your draw request has been disbursed. Funds should arrive in your account within 1-3 business days.`,
       eventType: "draw.disbursed",

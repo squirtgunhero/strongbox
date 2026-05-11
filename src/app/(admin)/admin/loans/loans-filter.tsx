@@ -13,12 +13,19 @@ import {
 import { Search } from "lucide-react";
 import { LOAN_STATUS_LABELS, type LoanStatus } from "@/lib/types";
 
-export function LoansFilter() {
+interface Staff {
+  id: string;
+  full_name: string;
+}
+
+export function LoansFilter({ staff }: { staff: Staff[] }) {
   const router = useRouter();
   const params = useSearchParams();
   const [, startTransition] = useTransition();
 
   const currentStatus = params.get("status") || "all";
+  const currentOfficer = params.get("officer") || "all";
+  const currentMaturity = params.get("maturity") || "all";
   const currentSearch = params.get("q") || "";
 
   function update(next: Record<string, string>) {
@@ -41,14 +48,11 @@ export function LoansFilter() {
             defaultValue={currentSearch}
             placeholder="Search by property or borrower..."
             className="pl-9"
-            onChange={(e) => {
-              // Debounce isn't worth a hook here — relying on transition is fine.
-              update({ q: e.target.value });
-            }}
+            onChange={(e) => update({ q: e.target.value })}
           />
         </div>
       </div>
-      <div className="w-[200px]">
+      <div className="w-[180px]">
         <Select
           value={currentStatus}
           onValueChange={(v) => v && update({ status: v })}
@@ -63,6 +67,42 @@ export function LoansFilter() {
                 {LOAN_STATUS_LABELS[s]}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="w-[180px]">
+        <Select
+          value={currentOfficer}
+          onValueChange={(v) => v && update({ officer: v })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Any officer" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any officer</SelectItem>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            {staff.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.full_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="w-[180px]">
+        <Select
+          value={currentMaturity}
+          onValueChange={(v) => v && update({ maturity: v })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Any maturity" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any maturity</SelectItem>
+            <SelectItem value="overdue">Overdue</SelectItem>
+            <SelectItem value="30">Maturing ≤30 days</SelectItem>
+            <SelectItem value="60">Maturing ≤60 days</SelectItem>
+            <SelectItem value="90">Maturing ≤90 days</SelectItem>
           </SelectContent>
         </Select>
       </div>

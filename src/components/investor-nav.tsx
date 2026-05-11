@@ -5,20 +5,21 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const links = [
-  { href: "/portal", label: "Loans" },
-  { href: "/portal/payments", label: "Payments" },
-  { href: "/portal/documents", label: "Documents" },
-  { href: "/portal/notifications", label: "Notifications" },
+  { href: "/investor", label: "Portfolio" },
+  { href: "/investor/distributions", label: "Distributions" },
+  { href: "/investor/documents", label: "Documents" },
 ];
 
-export function PortalNav() {
+export function InvestorNav() {
   const pathname = usePathname();
 
   return (
     <nav className="flex items-center gap-1">
       {links.map((l) => {
         const isActive =
-          l.href === "/portal" ? pathname === "/portal" : pathname.startsWith(l.href);
+          l.href === "/investor"
+            ? pathname === "/investor"
+            : pathname.startsWith(l.href);
         return (
           <Link
             key={l.href}

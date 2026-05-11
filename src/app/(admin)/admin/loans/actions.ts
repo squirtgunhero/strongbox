@@ -174,20 +174,14 @@ export async function updateLoanStatus(loanId: string, newStatus: string) {
       .select(`
         loan_borrowers(
           is_primary,
-          borrower:borrowers(email, first_name, last_name, entity_name, borrower_type)
+          borrower:borrowers(email, user_id)
         )
       `)
       .eq("id", loanId)
       .single<{
         loan_borrowers: {
           is_primary: boolean;
-          borrower: {
-            email: string | null;
-            first_name: string | null;
-            last_name: string | null;
-            entity_name: string | null;
-            borrower_type: string;
-          };
+          borrower: { email: string | null; user_id: string | null };
         }[];
       }>();
 
@@ -212,6 +206,7 @@ export async function updateLoanStatus(loanId: string, newStatus: string) {
         await queueNotification(supabase, {
           channel: "email",
           recipientEmail: primary.borrower.email,
+          recipientUserId: primary.borrower.user_id,
           subject: msg.subject,
           body: msg.body,
           eventType: `loan.${newStatus}`,

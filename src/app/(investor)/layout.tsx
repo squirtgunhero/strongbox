@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Landmark, LogOut } from "lucide-react";
 import { signOut } from "@/app/(auth)/login/actions";
 import { Button } from "@/components/ui/button";
+import { InvestorNav } from "@/components/investor-nav";
 
 export default async function InvestorLayout({
   children,
@@ -40,12 +41,15 @@ export default async function InvestorLayout({
             <span className="font-bold">StrongBox</span>
             <span className="text-xs text-muted-foreground ml-2">Investor</span>
           </Link>
-          <form action={signOut}>
-            <Button type="submit" variant="ghost" size="sm">
-              <LogOut className="mr-2 h-3 w-3" />
-              Sign out
-            </Button>
-          </form>
+          <div className="flex items-center gap-4">
+            <InvestorNav />
+            <form action={signOut}>
+              <Button type="submit" variant="ghost" size="sm">
+                <LogOut className="mr-2 h-3 w-3" />
+                Sign out
+              </Button>
+            </form>
+          </div>
         </div>
       </header>
       <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-8">

@@ -30,7 +30,12 @@ const statusVariant: Record<LoanStatus, "default" | "secondary" | "destructive" 
 export default async function LoansPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    q?: string;
+    officer?: string;
+    maturity?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -52,12 +57,26 @@ export default async function LoansPage({
     query = query.eq("status", sp.status);
   }
 
+  if (sp.officer && sp.officer !== "all") {
+    if (sp.officer === "unassigned") {
+      query = query.is("loan_officer_id", null);
+    } else {
+      query = query.eq("loan_officer_id", sp.officer);
+    }
+  }
+
   const { data: allLoans } = await query;
+
+  const { data: staff } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .in("role", ["admin", "loan_officer"])
+    .order("full_name", { ascending: true });
 
   // In-memory text search across property address and borrower name.
   // For larger datasets we'd push this to Postgres FTS or ilike.
   const search = sp.q?.trim().toLowerCase();
-  const loans = search
+  let loans = search
     ? (allLoans || []).filter((l) => {
         const propStr = l.property
           ? `${l.property.address_street} ${l.property.address_city} ${l.property.address_state} ${l.property.address_zip}`.toLowerCase()
@@ -83,7 +102,22 @@ export default async function LoansPage({
           .toLowerCase();
         return propStr.includes(search) || borrowerStr.includes(search);
       })
-    : allLoans;
+    : allLoans || [];
+
+  // Maturity filter (computed in memory)
+  if (sp.maturity && sp.maturity !== "all") {
+    const now = Date.now();
+    loans = loans.filter((l) => {
+      if (!l.maturity_date) return false;
+      const days = Math.ceil(
+        (new Date(l.maturity_date + "T00:00:00Z").getTime() - now) /
+          (1000 * 60 * 60 * 24)
+      );
+      if (sp.maturity === "overdue") return days < 0;
+      const limit = parseInt(sp.maturity || "0");
+      return days >= 0 && days <= limit;
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -95,7 +129,7 @@ export default async function LoansPage({
         </Button>
       </div>
 
-      <LoansFilter />
+      <LoansFilter staff={staff || []} />
 
       <div className="rounded-md border">
         <Table>

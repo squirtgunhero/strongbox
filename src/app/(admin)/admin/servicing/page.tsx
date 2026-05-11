@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency, formatRate, formatDate } from "@/lib/format";
 import { DollarSign, TrendingUp, AlertTriangle, Calendar } from "lucide-react";
+import { GenerateStatementsButton } from "./generate-statements-button";
 
 function daysUntil(dateStr: string | null): number | null {
   if (!dateStr) return null;
@@ -68,7 +69,10 @@ export default async function ServicingPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Servicing</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Servicing</h1>
+        <GenerateStatementsButton />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat icon={DollarSign} label="Deployed Capital" value={formatCurrency(totalDeployed)} />

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { accruedInterest } from "@/lib/calculations/interest";
+import { sendPendingNotifications } from "@/lib/notifications";
 import type { DayCountConvention } from "@/lib/types";
 
 /**
@@ -98,7 +99,17 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  return Response.json({ generated, skipped, periodStart, periodEnd });
+  // Drain the pending notifications now (best-effort)
+  const delivery = await sendPendingNotifications(supabase, generated);
+
+  return Response.json({
+    generated,
+    skipped,
+    sent: delivery.sent,
+    failed: delivery.failed,
+    periodStart,
+    periodEnd,
+  });
 }
 
 export async function GET(request: NextRequest) {

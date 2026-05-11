@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { FlushButton } from "./flush-button";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   pending: "outline",
@@ -26,17 +27,21 @@ export default async function NotificationsPage() {
     .order("created_at", { ascending: false })
     .limit(100);
 
-  const pending = (notifications || []).filter((n) => n.status === "pending");
+  const all = notifications || [];
+  const pending = all.filter((n) => n.status === "pending");
+  const failed = all.filter((n) => n.status === "failed");
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Notifications</h1>
-        <p className="text-sm text-muted-foreground">
-          Queue of notifications that would be sent via email/SMS. Real provider
-          integration (Resend / Twilio) is pending — these are currently logged
-          but not delivered.
-        </p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Notifications</h1>
+          <p className="text-sm text-muted-foreground">
+            Outgoing notification queue. Email is delivered via Resend; SMS via
+            Twilio is not yet wired.
+          </p>
+        </div>
+        <FlushButton pendingCount={pending.length} />
       </div>
 
       {pending.length > 0 && (
@@ -50,12 +55,23 @@ export default async function NotificationsPage() {
         </Card>
       )}
 
+      {failed.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Badge variant="destructive">Failed</Badge>
+              <span>{failed.length} need attention</span>
+            </CardTitle>
+          </CardHeader>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">Recent (last 100)</CardTitle>
         </CardHeader>
         <CardContent>
-          {!notifications?.length ? (
+          {!all.length ? (
             <p className="text-sm text-muted-foreground text-center py-4">
               No notifications yet.
             </p>
@@ -72,15 +88,25 @@ export default async function NotificationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {notifications.map((n) => (
+                {all.map((n) => (
                   <TableRow key={n.id}>
                     <TableCell className="text-xs whitespace-nowrap">
                       {new Date(n.created_at).toLocaleString()}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={STATUS_VARIANT[n.status] || "outline"}>
-                        {n.status}
-                      </Badge>
+                      <div className="flex flex-col gap-0.5">
+                        <Badge
+                          variant={STATUS_VARIANT[n.status] || "outline"}
+                          className="w-fit"
+                        >
+                          {n.status}
+                        </Badge>
+                        {n.failure_reason && (
+                          <span className="text-xs text-destructive max-w-[200px] truncate">
+                            {n.failure_reason}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm">{n.channel}</TableCell>
                     <TableCell className="text-xs font-mono">

@@ -35,6 +35,8 @@ import { InvestorPositions } from "./investor-positions";
 import { ConditionsChecklist } from "./conditions-checklist";
 import { ExtensionDialog } from "./extension-dialog";
 import { AddLateFee } from "./add-late-fee";
+import { OfficerSelect } from "./officer-select";
+import { StatusTimeline } from "./status-timeline";
 
 export default async function LoanDetailPage({
   params,
@@ -69,6 +71,8 @@ export default async function LoanDetailPage({
     { data: investorPositions },
     { data: availableInvestors },
     { data: conditions },
+    { data: staff },
+    { data: auditEntries },
     {
       data: { user },
     },
@@ -118,6 +122,21 @@ export default async function LoanDetailPage({
       .select("*")
       .eq("loan_id", id)
       .order("created_at", { ascending: true }),
+    supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("role", ["admin", "loan_officer"])
+      .order("full_name", { ascending: true }),
+    supabase
+      .from("audit_log")
+      .select(`
+        id, action, old_values, new_values, created_at,
+        performer:profiles!audit_log_performed_by_fkey(full_name)
+      `)
+      .eq("table_name", "loans")
+      .eq("record_id", id)
+      .order("created_at", { ascending: false })
+      .limit(30),
     supabase.auth.getUser(),
   ]);
 
@@ -254,12 +273,17 @@ export default async function LoanDetailPage({
             ) : (
               <p className="text-muted-foreground">No borrower linked</p>
             )}
-            {loan.loan_officer && (
-              <>
-                <Separator />
-                <Row label="Loan Officer" value={loan.loan_officer.full_name} />
-              </>
-            )}
+            <Separator />
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Loan Officer</span>
+              <div className="w-48">
+                <OfficerSelect
+                  loanId={loan.id}
+                  currentOfficerId={loan.loan_officer_id}
+                  staff={staff || []}
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -318,6 +342,8 @@ export default async function LoanDetailPage({
       </div>
 
       <DocumentsSection loanId={loan.id} documents={documents || []} />
+
+      <StatusTimeline entries={(auditEntries || []) as never} />
 
       {/* Payments */}
       <Card>

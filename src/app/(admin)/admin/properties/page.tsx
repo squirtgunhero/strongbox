@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import {
   Table,
@@ -46,7 +47,12 @@ export default async function PropertiesPage() {
               properties.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">
-                    {propertyAddress(p)}
+                    <Link
+                      href={`/admin/properties/${p.id}`}
+                      className="hover:underline"
+                    >
+                      {propertyAddress(p)}
+                    </Link>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">

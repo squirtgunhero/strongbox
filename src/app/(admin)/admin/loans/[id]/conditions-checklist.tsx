@@ -8,8 +8,17 @@ import {
   addCondition,
   toggleCondition,
   deleteCondition,
+  applyConditionTemplate,
 } from "./conditions-actions";
 import { Check, Plus, X, CheckCircle2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { CONDITION_TEMPLATES } from "@/lib/condition-templates";
 
 interface Condition {
   id: string;
@@ -28,6 +37,7 @@ export function ConditionsChecklist({
 }) {
   const [newCondition, setNewCondition] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -38,6 +48,16 @@ export function ConditionsChecklist({
       setNewCondition("");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleTemplate(templateId: string | null) {
+    if (!templateId) return;
+    setApplyingTemplate(true);
+    try {
+      await applyConditionTemplate(loanId, templateId);
+    } finally {
+      setApplyingTemplate(false);
     }
   }
 
@@ -60,6 +80,28 @@ export function ConditionsChecklist({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {conditions.length === 0 && (
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">
+              Apply a template to get started:
+            </p>
+            <Select
+              onValueChange={handleTemplate}
+              disabled={applyingTemplate}
+            >
+              <SelectTrigger className="h-8">
+                <SelectValue placeholder="Choose a template..." />
+              </SelectTrigger>
+              <SelectContent>
+                {CONDITION_TEMPLATES.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <form onSubmit={handleAdd} className="flex gap-2">
           <Input
             value={newCondition}

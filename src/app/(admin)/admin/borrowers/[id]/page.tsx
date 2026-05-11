@@ -20,6 +20,7 @@ import {
 } from "@/lib/format";
 import { LOAN_STATUS_LABELS, type LoanStatus } from "@/lib/types";
 import { LinkBorrowerCard } from "./link-borrower-card";
+import { BorrowerEditForm } from "./borrower-edit-form";
 
 export default async function BorrowerDetailPage({
   params,
@@ -62,40 +63,17 @@ export default async function BorrowerDetailPage({
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Profile</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <Row label="Type" value={borrower.borrower_type === "entity" ? "Entity" : "Individual"} />
-            {borrower.borrower_type === "individual" ? (
-              <>
-                <Row label="Name" value={`${borrower.first_name} ${borrower.last_name}`} />
-                {borrower.credit_score && (
-                  <Row label="Credit Score" value={String(borrower.credit_score)} />
-                )}
-              </>
-            ) : (
-              <>
-                <Row label="Entity Name" value={borrower.entity_name} />
-                {borrower.formation_state && (
-                  <Row label="Formation State" value={borrower.formation_state} />
-                )}
-              </>
-            )}
-            <Row label="Email" value={borrower.email || "--"} />
-            <Row label="Phone" value={borrower.phone || "--"} />
-            <Row label="Prior Deals" value={String(borrower.deals_completed)} />
-            <Row label="Created" value={formatDate(borrower.created_at)} />
-            {borrower.notes && (
-              <div className="pt-2">
-                <div className="text-xs text-muted-foreground mb-1">Notes</div>
-                <p className="text-sm">{borrower.notes}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Profile</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <BorrowerEditForm borrower={borrower} />
+            </CardContent>
+          </Card>
+        </div>
 
         <LinkBorrowerCard
           borrowerId={borrower.id}
@@ -187,11 +165,3 @@ export default async function BorrowerDetailPage({
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
-    </div>
-  );
-}

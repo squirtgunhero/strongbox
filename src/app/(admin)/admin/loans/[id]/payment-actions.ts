@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { applyWaterfall } from "@/lib/calculations/waterfall";
 import { accruedInterest } from "@/lib/calculations/interest";
 import { investorShareOfInterest } from "@/lib/calculations/distributions";
+import { queueNotification } from "@/lib/notifications";
 import type { DayCountConvention } from "@/lib/types";
 
 export async function recordPayment(loanId: string, formData: FormData) {
@@ -107,28 +108,60 @@ export async function recordPayment(loanId: string, formData: FormData) {
   if (result.applied_to_interest > 0) {
     const { data: positions } = await supabase
       .from("investor_positions")
-      .select("investor_id, percentage")
+      .select(`
+        investor_id,
+        percentage,
+        investor:investors(email, user_id, full_name, entity_name, investor_type)
+      `)
       .eq("loan_id", loanId);
 
     if (positions && positions.length > 0) {
-      const distRows = positions
-        .map((p) => {
-          const share = investorShareOfInterest(
+      const typed = positions as unknown as {
+        investor_id: string;
+        percentage: number;
+        investor: {
+          email: string;
+          user_id: string | null;
+          full_name: string | null;
+          entity_name: string | null;
+          investor_type: string;
+        };
+      }[];
+
+      const distRows = typed
+        .map((p) => ({
+          investor_id: p.investor_id,
+          loan_id: loanId,
+          payment_id: insertedPayment.id,
+          amount: investorShareOfInterest(
             result.applied_to_interest,
             Number(p.percentage)
-          );
-          return {
-            investor_id: p.investor_id,
-            loan_id: loanId,
-            payment_id: insertedPayment.id,
-            amount: share,
-            distribution_date: receivedDate,
-          };
-        })
+          ),
+          distribution_date: receivedDate,
+        }))
         .filter((r) => r.amount > 0);
 
       if (distRows.length > 0) {
         await supabase.from("investor_distributions").insert(distRows);
+
+        // Notify each investor
+        for (let i = 0; i < typed.length; i++) {
+          const pos = typed[i];
+          const share = investorShareOfInterest(
+            result.applied_to_interest,
+            Number(pos.percentage)
+          );
+          if (share <= 0 || !pos.investor?.email) continue;
+          await queueNotification(supabase, {
+            channel: "email",
+            recipientEmail: pos.investor.email,
+            recipientUserId: pos.investor.user_id,
+            subject: `Distribution of $${share.toFixed(2)} received`,
+            body: `A distribution of $${share.toFixed(2)} from a loan you have a position in was recorded on ${receivedDate}. View details in your investor portal.`,
+            eventType: "investor.distribution",
+            relatedLoanId: loanId,
+          });
+        }
       }
     }
   }

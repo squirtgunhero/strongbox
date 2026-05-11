@@ -11,12 +11,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate, propertyAddress } from "@/lib/format";
 import { PROPERTY_TYPE_LABELS, type PropertyType } from "@/lib/types";
-import { ListSearch } from "@/components/list-search";
+import { PropertiesFilter } from "./properties-filter";
 
 export default async function PropertiesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; state?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -27,16 +27,26 @@ export default async function PropertiesPage({
     .order("created_at", { ascending: false });
 
   const search = sp.q?.trim().toLowerCase();
-  const properties = search
-    ? (allProperties || []).filter((p) => {
-        return propertyAddress(p).toLowerCase().includes(search);
-      })
-    : allProperties;
+  const stateFilter = sp.state?.toUpperCase();
+  let properties = allProperties || [];
+  if (search) {
+    properties = properties.filter((p) =>
+      propertyAddress(p).toLowerCase().includes(search)
+    );
+  }
+  if (stateFilter && stateFilter !== "ALL") {
+    properties = properties.filter((p) => p.address_state === stateFilter);
+  }
+
+  // Distinct states for the filter dropdown
+  const states = Array.from(
+    new Set((allProperties || []).map((p) => p.address_state).filter(Boolean))
+  ).sort();
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Properties</h1>
-      <ListSearch placeholder="Search by address..." />
+      <PropertiesFilter states={states} />
 
       <div className="rounded-md border">
         <Table>

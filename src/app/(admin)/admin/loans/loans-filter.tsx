@@ -27,6 +27,20 @@ export function LoansFilter({ staff }: { staff: Staff[] }) {
   const currentOfficer = params.get("officer") || "all";
   const currentMaturity = params.get("maturity") || "all";
   const currentSearch = params.get("q") || "";
+  const mineActive = params.get("mine") === "1";
+
+  function toggleMine() {
+    const p = new URLSearchParams(params.toString());
+    if (mineActive) {
+      p.delete("mine");
+    } else {
+      p.set("mine", "1");
+      p.delete("officer");
+    }
+    startTransition(() => {
+      router.push(`/admin/loans${p.toString() ? `?${p}` : ""}`);
+    });
+  }
 
   function update(next: Record<string, string>) {
     const p = new URLSearchParams(params.toString());
@@ -41,6 +55,16 @@ export function LoansFilter({ staff }: { staff: Staff[] }) {
 
   return (
     <div className="flex gap-3 items-end flex-wrap">
+      <button
+        onClick={toggleMine}
+        className={`h-9 px-3 rounded-md border text-sm transition-colors ${
+          mineActive
+            ? "bg-primary text-primary-foreground border-primary"
+            : "bg-background border-input hover:bg-muted"
+        }`}
+      >
+        Mine
+      </button>
       <div className="flex-1 min-w-[240px]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />

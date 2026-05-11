@@ -16,10 +16,15 @@ export default async function LoansPage({
     sort?: string;
     dir?: string;
     page?: string;
+    mine?: string;
   }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const sortField = sp.sort || "created_at";
   const sortDir = sp.dir === "asc";
@@ -52,12 +57,15 @@ export default async function LoansPage({
     query = query.eq("status", sp.status);
   }
 
+  // Officer filter (explicit takes precedence over "mine")
   if (sp.officer && sp.officer !== "all") {
     if (sp.officer === "unassigned") {
       query = query.is("loan_officer_id", null);
     } else {
       query = query.eq("loan_officer_id", sp.officer);
     }
+  } else if (sp.mine === "1" && user) {
+    query = query.eq("loan_officer_id", user.id);
   }
 
   const { data: allLoans } = await query;

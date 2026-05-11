@@ -8,6 +8,7 @@ const links = [
   { href: "/investor", label: "Portfolio" },
   { href: "/investor/distributions", label: "Distributions" },
   { href: "/investor/documents", label: "Documents" },
+  { href: "/investor/notifications", label: "Notifications" },
 ];
 
 export function InvestorNav() {

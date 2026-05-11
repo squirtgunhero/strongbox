@@ -13,19 +13,45 @@ import {
   Clock,
   Shield,
 } from "lucide-react";
+import { DashboardScopeToggle } from "./dashboard-scope-toggle";
 
-export default async function AdminDashboard() {
+export default async function AdminDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ scope?: string }>;
+}) {
+  const sp = await searchParams;
   const supabase = await createClient();
+
+  // Default scope: loan officers see their own loans; admins see all
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user!.id)
+    .single();
+
+  const defaultMine = profile?.role === "loan_officer";
+  const explicitScope = sp.scope;
+  const isMine =
+    explicitScope === "mine" || (explicitScope === undefined && defaultMine);
+
+  let loanQuery = supabase.from("loans").select(`
+    *,
+    property:properties(address_street, address_city, address_state)
+  `);
+  if (isMine && user) {
+    loanQuery = loanQuery.eq("loan_officer_id", user.id);
+  }
 
   const [
     { data: loans },
     { data: draws },
     { data: signatures },
   ] = await Promise.all([
-    supabase.from("loans").select(`
-      *,
-      property:properties(address_street, address_city, address_state)
-    `),
+    loanQuery,
     supabase
       .from("draws")
       .select(`
@@ -90,7 +116,10 @@ export default async function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <DashboardScopeToggle defaultMine={defaultMine} />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat

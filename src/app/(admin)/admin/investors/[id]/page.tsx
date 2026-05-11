@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Receipt } from "lucide-react";
+import { InvestorInviteButton } from "./invite-button";
 import {
   Table,
   TableBody,
@@ -81,20 +82,26 @@ export default async function InvestorDetailPage({
             {investor.phone && <span>· {investor.phone}</span>}
           </div>
         </div>
-        <Button
-          nativeButton={false}
-          variant="outline"
-          size="sm"
-          render={
-            <Link
-              href={`/documents/investor/${investor.id}/1099?year=${lastYear}`}
-              target="_blank"
-            />
-          }
-        >
-          <Receipt className="mr-2 h-3 w-3" />
-          {lastYear} Year-End Summary
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <InvestorInviteButton
+            investorId={investor.id}
+            alreadyLinked={!!investor.user_id}
+          />
+          <Button
+            nativeButton={false}
+            variant="outline"
+            size="sm"
+            render={
+              <Link
+                href={`/documents/investor/${investor.id}/1099?year=${lastYear}`}
+                target="_blank"
+              />
+            }
+          >
+            <Receipt className="mr-2 h-3 w-3" />
+            {lastYear} Year-End Summary
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-4">

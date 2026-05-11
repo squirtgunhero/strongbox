@@ -20,21 +20,28 @@ export default async function InvestorDashboard() {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: investor } = await supabase
-    .from("investors")
-    .select(`
-      *,
-      positions:investor_positions(
+  const [{ data: investor }, { data: notifications }] = await Promise.all([
+    supabase
+      .from("investors")
+      .select(`
         *,
-        loan:loans(
-          id, status, loan_amount, interest_rate, maturity_date,
-          property:properties(address_street, address_city, address_state, address_zip)
-        )
-      ),
-      distributions:investor_distributions(amount, distribution_date)
-    `)
-    .eq("user_id", user.id)
-    .single();
+        positions:investor_positions(
+          *,
+          loan:loans(
+            id, status, loan_amount, interest_rate, maturity_date,
+            property:properties(address_street, address_city, address_state, address_zip)
+          )
+        ),
+        distributions:investor_distributions(amount, distribution_date)
+      `)
+      .eq("user_id", user.id)
+      .single(),
+    supabase
+      .from("notifications")
+      .select("id, subject, body, event_type, created_at, related_loan_id")
+      .order("created_at", { ascending: false })
+      .limit(3),
+  ]);
 
   if (!investor) {
     return (
@@ -88,6 +95,45 @@ export default async function InvestorDashboard() {
           value={`${(ytd.annualizedReturn * 100).toFixed(2)}%`}
         />
       </div>
+
+      {(notifications || []).length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-sm">Recent Activity</CardTitle>
+            <Link
+              href="/investor/notifications"
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              View all →
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3">
+              {(notifications || []).map((n) => (
+                <li
+                  key={n.id}
+                  className="flex justify-between items-start gap-4 text-sm"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium truncate">{n.subject}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatDate(n.created_at)}
+                    </div>
+                  </div>
+                  {n.related_loan_id && (
+                    <Link
+                      href={`/investor/loans/${n.related_loan_id}`}
+                      className="text-xs text-primary hover:underline shrink-0"
+                    >
+                      View →
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

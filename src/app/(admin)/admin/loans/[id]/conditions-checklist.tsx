@@ -25,6 +25,7 @@ interface Condition {
   description: string;
   is_satisfied: boolean;
   satisfied_at: string | null;
+  due_date: string | null;
   satisfied_by_user?: { full_name: string } | null;
 }
 
@@ -36,6 +37,7 @@ export function ConditionsChecklist({
   conditions: Condition[];
 }) {
   const [newCondition, setNewCondition] = useState("");
+  const [newDueDate, setNewDueDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [applyingTemplate, setApplyingTemplate] = useState(false);
 
@@ -44,8 +46,9 @@ export function ConditionsChecklist({
     if (!newCondition.trim()) return;
     setSubmitting(true);
     try {
-      await addCondition(loanId, newCondition);
+      await addCondition(loanId, newCondition, newDueDate || null);
       setNewCondition("");
+      setNewDueDate("");
     } finally {
       setSubmitting(false);
     }
@@ -107,6 +110,14 @@ export function ConditionsChecklist({
             value={newCondition}
             onChange={(e) => setNewCondition(e.target.value)}
             placeholder="e.g. Clear title commitment received"
+            disabled={submitting}
+          />
+          <Input
+            type="date"
+            value={newDueDate}
+            onChange={(e) => setNewDueDate(e.target.value)}
+            className="w-[150px]"
+            title="Due date (optional)"
             disabled={submitting}
           />
           <Button type="submit" size="sm" disabled={submitting}>
@@ -174,6 +185,32 @@ function ConditionRow({
         className={`flex-1 ${condition.is_satisfied ? "text-muted-foreground line-through" : ""}`}
       >
         {condition.description}
+        {condition.due_date && (() => {
+          const days = Math.ceil(
+            (new Date(condition.due_date + "T00:00:00Z").getTime() - Date.now()) /
+              (1000 * 60 * 60 * 24)
+          );
+          const overdue = !condition.is_satisfied && days < 0;
+          const dueSoon = !condition.is_satisfied && days >= 0 && days <= 7;
+          return (
+            <span
+              className={`ml-2 text-xs ${
+                overdue
+                  ? "text-destructive font-medium"
+                  : dueSoon
+                    ? "text-yellow-600"
+                    : "text-muted-foreground"
+              }`}
+            >
+              · due{" "}
+              {new Date(condition.due_date + "T00:00:00Z").toLocaleDateString(
+                "en-US",
+                { month: "short", day: "numeric" }
+              )}
+              {overdue && ` (${Math.abs(days)}d overdue)`}
+            </span>
+          );
+        })()}
       </span>
       <button
         onClick={handleDelete}

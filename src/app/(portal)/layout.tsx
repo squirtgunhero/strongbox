@@ -33,6 +33,12 @@ export default async function PortalLayout({
     redirect("/admin");
   }
 
+  const { count: unread } = await supabase
+    .from("notifications")
+    .select("*", { count: "exact", head: true })
+    .eq("recipient_user_id", user.id)
+    .is("read_at", null);
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b">
@@ -42,7 +48,7 @@ export default async function PortalLayout({
             <span className="font-bold">StrongBox</span>
           </Link>
           <div className="flex items-center gap-4">
-            <PortalNav />
+            <PortalNav unreadCount={unread || 0} />
             <ThemeToggle />
             <form action={signOut}>
               <Button type="submit" variant="ghost" size="sm">

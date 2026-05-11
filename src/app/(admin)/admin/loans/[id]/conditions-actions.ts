@@ -4,7 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { CONDITION_TEMPLATES } from "@/lib/condition-templates";
 
-export async function addCondition(loanId: string, description: string) {
+export async function addCondition(
+  loanId: string,
+  description: string,
+  dueDate?: string | null
+) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -15,7 +19,28 @@ export async function addCondition(loanId: string, description: string) {
   const { error } = await supabase.from("loan_conditions").insert({
     loan_id: loanId,
     description: description.trim(),
+    due_date: dueDate || null,
   });
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/admin/loans/${loanId}`);
+}
+
+export async function setConditionDueDate(
+  conditionId: string,
+  loanId: string,
+  dueDate: string | null
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("loan_conditions")
+    .update({ due_date: dueDate || null })
+    .eq("id", conditionId);
   if (error) throw new Error(error.message);
 
   revalidatePath(`/admin/loans/${loanId}`);

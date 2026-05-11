@@ -33,6 +33,12 @@ export default async function InvestorLayout({
     );
   }
 
+  const { count: unread } = await supabase
+    .from("notifications")
+    .select("*", { count: "exact", head: true })
+    .eq("recipient_user_id", user.id)
+    .is("read_at", null);
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b">
@@ -43,7 +49,7 @@ export default async function InvestorLayout({
             <span className="text-xs text-muted-foreground ml-2">Investor</span>
           </Link>
           <div className="flex items-center gap-4">
-            <InvestorNav />
+            <InvestorNav unreadCount={unread || 0} />
             <ThemeToggle />
             <form action={signOut}>
               <Button type="submit" variant="ghost" size="sm">

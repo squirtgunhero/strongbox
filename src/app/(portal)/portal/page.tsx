@@ -47,46 +47,42 @@ export default async function PortalDashboard() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
-          {loans.map((loan) => {
-            const daysToMaturity = daysUntil(loan.maturity_date);
-            return (
-              <Link key={loan.id} href={`/portal/loans/${loan.id}`} className="block">
-                <Card className="hover:bg-muted/30 transition-colors">
-                  <CardHeader className="flex flex-row items-start justify-between pb-3">
-                    <div>
-                      <CardTitle className="text-base">
-                        {loan.property ? propertyAddress(loan.property) : "Loan"}
-                      </CardTitle>
-                      <Badge variant="outline" className="mt-2">
-                        {LOAN_STATUS_LABELS[loan.status as LoanStatus]}
-                      </Badge>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid gap-4 sm:grid-cols-4 text-sm">
-                      <Stat label="Current Balance" value={formatCurrency(loan.current_principal)} />
-                      <Stat label="Rate" value={formatRate(loan.interest_rate)} />
-                      <Stat label="Maturity" value={formatDate(loan.maturity_date)} />
-                      <Stat
-                        label="Days Remaining"
-                        value={
-                          daysToMaturity === null
-                            ? "--"
-                            : daysToMaturity < 0
-                              ? `${Math.abs(daysToMaturity)}d overdue`
-                              : `${daysToMaturity}d`
-                        }
-                        highlight={daysToMaturity !== null && daysToMaturity < 30}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
+        (() => {
+          const active = loans.filter((l) =>
+            ["lead", "application", "underwriting", "approved", "funded", "active", "defaulted", "foreclosure"].includes(
+              l.status
+            )
+          );
+          const closed = loans.filter((l) => l.status === "paid_off");
+
+          return (
+            <>
+              {active.length > 0 && (
+                <div className="grid gap-4">
+                  {active.map((loan) => (
+                    <LoanCard key={loan.id} loan={loan} />
+                  ))}
+                </div>
+              )}
+
+              {closed.length > 0 && (
+                <details className="group" open={active.length === 0}>
+                  <summary className="cursor-pointer text-sm font-medium text-muted-foreground mb-3 hover:text-foreground inline-flex items-center gap-1.5">
+                    Paid Off ({closed.length})
+                    <span className="text-xs group-open:rotate-90 transition-transform">
+                      ▶
+                    </span>
+                  </summary>
+                  <div className="grid gap-4">
+                    {closed.map((loan) => (
+                      <LoanCard key={loan.id} loan={loan} muted />
+                    ))}
+                  </div>
+                </details>
+              )}
+            </>
+          );
+        })()
       )}
 
       {(notifications || []).length > 0 && (
@@ -144,5 +140,71 @@ function Stat({
         {value}
       </div>
     </div>
+  );
+}
+
+interface PortalLoan {
+  id: string;
+  status: string;
+  current_principal: number;
+  interest_rate: number;
+  maturity_date: string | null;
+  loan_amount: number;
+  property: {
+    address_street: string;
+    address_city: string;
+    address_state: string;
+    address_zip: string;
+  } | null;
+}
+
+function LoanCard({ loan, muted = false }: { loan: PortalLoan; muted?: boolean }) {
+  const daysToMaturity = daysUntil(loan.maturity_date);
+  return (
+    <Link href={`/portal/loans/${loan.id}`} className="block">
+      <Card
+        className={`hover:bg-muted/30 transition-colors ${muted ? "opacity-75" : ""}`}
+      >
+        <CardHeader className="flex flex-row items-start justify-between pb-3">
+          <div>
+            <CardTitle className="text-base">
+              {loan.property ? propertyAddress(loan.property) : "Loan"}
+            </CardTitle>
+            <Badge variant="outline" className="mt-2">
+              {LOAN_STATUS_LABELS[loan.status as LoanStatus]}
+            </Badge>
+          </div>
+          <ArrowRight className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-4 text-sm">
+            {loan.status === "paid_off" ? (
+              <>
+                <Stat label="Original Amount" value={formatCurrency(loan.loan_amount)} />
+                <Stat label="Rate" value={formatRate(loan.interest_rate)} />
+                <Stat label="Paid Off" value={formatDate(loan.maturity_date)} />
+              </>
+            ) : (
+              <>
+                <Stat label="Current Balance" value={formatCurrency(loan.current_principal)} />
+                <Stat label="Rate" value={formatRate(loan.interest_rate)} />
+                <Stat label="Maturity" value={formatDate(loan.maturity_date)} />
+                <Stat
+                  label="Days Remaining"
+                  value={
+                    daysToMaturity === null
+                      ? "--"
+                      : daysToMaturity < 0
+                        ? `${Math.abs(daysToMaturity)}d overdue`
+                        : `${daysToMaturity}d`
+                  }
+                  highlight={daysToMaturity !== null && daysToMaturity < 30}
+                />
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }

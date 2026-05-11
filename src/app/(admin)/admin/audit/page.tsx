@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDate } from "@/lib/format";
+import { AuditFilter } from "./audit-filter";
 
 const ACTION_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   insert: "outline",
@@ -23,16 +23,21 @@ const ACTION_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
 export default async function AuditLogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    action?: string;
+    table?: string;
+    from?: string;
+    to?: string;
+  }>;
 }) {
   const sp = await searchParams;
-  const page = parseInt(sp.page || "1");
+  const page = Math.max(1, parseInt(sp.page || "1"));
   const pageSize = 50;
   const offset = (page - 1) * pageSize;
 
   const supabase = await createClient();
 
-  // Admin only
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -45,7 +50,7 @@ export default async function AuditLogPage({
     redirect("/admin");
   }
 
-  const { data: entries, count } = await supabase
+  let query = supabase
     .from("audit_log")
     .select(
       `
@@ -54,10 +59,37 @@ export default async function AuditLogPage({
     `,
       { count: "exact" }
     )
-    .order("created_at", { ascending: false })
-    .range(offset, offset + pageSize - 1);
+    .order("created_at", { ascending: false });
 
-  const totalPages = Math.ceil((count || 0) / pageSize);
+  if (sp.action && sp.action !== "all") {
+    query = query.eq("action", sp.action);
+  }
+  if (sp.table && sp.table !== "all") {
+    query = query.eq("table_name", sp.table);
+  }
+  if (sp.from) {
+    query = query.gte("created_at", sp.from);
+  }
+  if (sp.to) {
+    query = query.lte("created_at", `${sp.to}T23:59:59.999Z`);
+  }
+
+  const { data: entries, count } = await query.range(
+    offset,
+    offset + pageSize - 1
+  );
+
+  const totalPages = Math.max(1, Math.ceil((count || 0) / pageSize));
+
+  function pageHref(p: number) {
+    const next = new URLSearchParams();
+    if (sp.action) next.set("action", sp.action);
+    if (sp.table) next.set("table", sp.table);
+    if (sp.from) next.set("from", sp.from);
+    if (sp.to) next.set("to", sp.to);
+    next.set("page", String(p));
+    return `?${next.toString()}`;
+  }
 
   return (
     <div className="space-y-6">
@@ -68,10 +100,12 @@ export default async function AuditLogPage({
         </p>
       </div>
 
+      <AuditFilter />
+
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">
-            Entries ({count?.toLocaleString() || 0})
+            {count?.toLocaleString() || 0} entries
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -90,7 +124,7 @@ export default async function AuditLogPage({
               {!entries?.length ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                    No audit entries yet.
+                    No audit entries match your filters.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -132,7 +166,7 @@ export default async function AuditLogPage({
               <div className="flex gap-2">
                 {page > 1 && (
                   <a
-                    href={`?page=${page - 1}`}
+                    href={pageHref(page - 1)}
                     className="text-sm hover:underline"
                   >
                     ← Previous
@@ -140,7 +174,7 @@ export default async function AuditLogPage({
                 )}
                 {page < totalPages && (
                   <a
-                    href={`?page=${page + 1}`}
+                    href={pageHref(page + 1)}
                     className="text-sm hover:underline"
                   >
                     Next →

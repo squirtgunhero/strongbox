@@ -98,17 +98,37 @@ export default async function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Reports</h1>
-        <Button
-          nativeButton={false}
-          variant="outline"
-          size="sm"
-          render={<Link href="/api/reports/loans.csv" target="_blank" />}
-        >
-          <Download className="mr-2 h-3 w-3" />
-          Export Loans CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            nativeButton={false}
+            variant="outline"
+            size="sm"
+            render={<Link href="/api/reports/loans.csv" target="_blank" />}
+          >
+            <Download className="mr-2 h-3 w-3" />
+            Loans CSV
+          </Button>
+          <Button
+            nativeButton={false}
+            variant="outline"
+            size="sm"
+            render={<Link href="/api/reports/payments.csv" target="_blank" />}
+          >
+            <Download className="mr-2 h-3 w-3" />
+            Payments CSV
+          </Button>
+          <Button
+            nativeButton={false}
+            variant="outline"
+            size="sm"
+            render={<Link href="/api/reports/distributions.csv" target="_blank" />}
+          >
+            <Download className="mr-2 h-3 w-3" />
+            Distributions CSV
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

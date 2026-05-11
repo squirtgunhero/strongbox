@@ -5,6 +5,7 @@ import { Landmark, LogOut } from "lucide-react";
 import { signOut } from "@/app/(auth)/login/actions";
 import { Button } from "@/components/ui/button";
 import { InvestorNav } from "@/components/investor-nav";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default async function InvestorLayout({
   children,
@@ -43,6 +44,7 @@ export default async function InvestorLayout({
           </Link>
           <div className="flex items-center gap-4">
             <InvestorNav />
+            <ThemeToggle />
             <form action={signOut}>
               <Button type="submit" variant="ghost" size="sm">
                 <LogOut className="mr-2 h-3 w-3" />

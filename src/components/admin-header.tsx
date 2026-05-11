@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { User, LogOut } from "lucide-react";
 import { signOut } from "@/app/(auth)/login/actions";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface AdminHeaderProps {
   profile: { full_name: string; role: string };
@@ -22,6 +23,7 @@ export function AdminHeader({ profile }: AdminHeaderProps) {
       <SidebarTrigger />
       <Separator orientation="vertical" className="h-6" />
       <div className="flex-1" />
+      <ThemeToggle />
       <DropdownMenu>
         <DropdownMenuTrigger
           render={<Button variant="ghost" size="sm" className="gap-2" />}

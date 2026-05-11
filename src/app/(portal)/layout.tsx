@@ -6,6 +6,7 @@ import { PortalNav } from "@/components/portal-nav";
 import { signOut } from "@/app/(auth)/login/actions";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default async function PortalLayout({
   children,
@@ -42,6 +43,7 @@ export default async function PortalLayout({
           </Link>
           <div className="flex items-center gap-4">
             <PortalNav />
+            <ThemeToggle />
             <form action={signOut}>
               <Button type="submit" variant="ghost" size="sm">
                 <LogOut className="mr-2 h-3 w-3" />

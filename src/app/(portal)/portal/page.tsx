@@ -15,13 +15,20 @@ function daysUntil(dateStr: string | null): number | null {
 export default async function PortalDashboard() {
   const supabase = await createClient();
 
-  const { data: loans } = await supabase
-    .from("loans")
-    .select(`
-      *,
-      property:properties(*)
-    `)
-    .order("status", { ascending: true });
+  const [{ data: loans }, { data: notifications }] = await Promise.all([
+    supabase
+      .from("loans")
+      .select(`
+        *,
+        property:properties(*)
+      `)
+      .order("status", { ascending: true }),
+    supabase
+      .from("notifications")
+      .select("id, subject, body, event_type, created_at, related_loan_id")
+      .order("created_at", { ascending: false })
+      .limit(3),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -80,6 +87,42 @@ export default async function PortalDashboard() {
             );
           })}
         </div>
+      )}
+
+      {(notifications || []).length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-sm">Recent Activity</CardTitle>
+            <Link
+              href="/portal/notifications"
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              View all →
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3">
+              {(notifications || []).map((n) => (
+                <li key={n.id} className="flex justify-between items-start gap-4 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium truncate">{n.subject}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatDate(n.created_at)}
+                    </div>
+                  </div>
+                  {n.related_loan_id && (
+                    <Link
+                      href={`/portal/loans/${n.related_loan_id}`}
+                      className="text-xs text-primary hover:underline shrink-0"
+                    >
+                      View →
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

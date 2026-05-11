@@ -11,6 +11,7 @@ import {
   Hammer,
   FileSignature,
   Clock,
+  Shield,
 } from "lucide-react";
 
 export default async function AdminDashboard() {
@@ -65,6 +66,18 @@ export default async function AdminDashboard() {
         (1000 * 60 * 60 * 24)
     );
     return days <= 30;
+  });
+
+  // Insurance attention = active loans whose insurance is missing, expired,
+  // or expiring within 30 days
+  const insuranceAttention = activeLoans.filter((l) => {
+    if (!l.insurance_carrier) return true;
+    if (!l.insurance_expiration_date) return false;
+    const days = Math.ceil(
+      (new Date(l.insurance_expiration_date + "T00:00:00Z").getTime() - now) /
+        (1000 * 60 * 60 * 24)
+    );
+    return days < 30;
   });
 
   const statusCounts = allLoans.reduce(
@@ -183,6 +196,40 @@ export default async function AdminDashboard() {
           })}
         />
       </div>
+
+      {insuranceAttention.length > 0 && (
+        <Worklist
+          title="Insurance Attention"
+          icon={Shield}
+          empty="All insurance current"
+          items={insuranceAttention.slice(0, 8).map((l) => {
+            const missing = !l.insurance_carrier;
+            const days =
+              !missing && l.insurance_expiration_date
+                ? Math.ceil(
+                    (new Date(l.insurance_expiration_date + "T00:00:00Z").getTime() -
+                      now) /
+                      (1000 * 60 * 60 * 24)
+                  )
+                : null;
+            return {
+              href: `/admin/loans/${l.id}`,
+              primary: l.property
+                ? `${l.property.address_street}, ${l.property.address_city}`
+                : "—",
+              secondary: missing
+                ? "No insurance on file"
+                : l.insurance_carrier || "",
+              badge: missing
+                ? "Missing"
+                : days !== null && days < 0
+                  ? `${Math.abs(days)}d expired`
+                  : `${days}d`,
+              badgeVariant: "destructive",
+            };
+          })}
+        />
+      )}
 
       <Card>
         <CardHeader>

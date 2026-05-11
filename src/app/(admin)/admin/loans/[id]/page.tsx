@@ -37,6 +37,8 @@ import { ExtensionDialog } from "./extension-dialog";
 import { AddLateFee } from "./add-late-fee";
 import { OfficerSelect } from "./officer-select";
 import { StatusTimeline } from "./status-timeline";
+import { InsuranceDisplay } from "./insurance-display";
+import { PaymentIntentsSection } from "./payment-intents-section";
 
 export default async function LoanDetailPage({
   params,
@@ -73,6 +75,7 @@ export default async function LoanDetailPage({
     { data: conditions },
     { data: staff },
     { data: auditEntries },
+    { data: paymentIntents },
     {
       data: { user },
     },
@@ -137,6 +140,11 @@ export default async function LoanDetailPage({
       .eq("record_id", id)
       .order("created_at", { ascending: false })
       .limit(30),
+    supabase
+      .from("payment_intents")
+      .select("*")
+      .eq("loan_id", id)
+      .order("created_at", { ascending: false }),
     supabase.auth.getUser(),
   ]);
 
@@ -303,6 +311,21 @@ export default async function LoanDetailPage({
         )}
       </div>
 
+      {["funded", "active", "defaulted"].includes(loan.status) && (
+        <InsuranceDisplay
+          insurance={{
+            insurance_carrier: loan.insurance_carrier ?? null,
+            insurance_policy_number: loan.insurance_policy_number ?? null,
+            insurance_coverage_amount: loan.insurance_coverage_amount ?? null,
+            insurance_expiration_date: loan.insurance_expiration_date ?? null,
+            insurance_agent_name: loan.insurance_agent_name ?? null,
+            insurance_agent_email: loan.insurance_agent_email ?? null,
+            insurance_agent_phone: loan.insurance_agent_phone ?? null,
+            insurance_updated_at: loan.insurance_updated_at ?? null,
+          }}
+        />
+      )}
+
       {/* Draws (only show if rehab budget is set) */}
       {rehabBudget > 0 && user && (
         <DrawsSection
@@ -344,6 +367,8 @@ export default async function LoanDetailPage({
       <DocumentsSection loanId={loan.id} documents={documents || []} />
 
       <StatusTimeline entries={(auditEntries || []) as never} />
+
+      <PaymentIntentsSection intents={paymentIntents || []} />
 
       {/* Payments */}
       <Card>

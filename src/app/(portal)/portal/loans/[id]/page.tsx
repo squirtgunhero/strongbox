@@ -23,6 +23,7 @@ import { Receipt, Mail, Download } from "lucide-react";
 import { DocumentUpload } from "./document-upload";
 import { DownloadButton } from "@/app/(portal)/portal/documents/download-button";
 import { InsuranceCard } from "./insurance-card";
+import { PaymentIntentDialog } from "./payment-intent-dialog";
 
 const PAYMENT_TYPE_LABELS: Record<string, string> = {
   interest: "Interest",
@@ -246,8 +247,11 @@ export default async function PortalLoanDetail({
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-sm">Payment History</CardTitle>
+          {["funded", "active", "defaulted"].includes(loan.status) && (
+            <PaymentIntentDialog loanId={loan.id} />
+          )}
         </CardHeader>
         <CardContent>
           {!payments?.length ? (

@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AuditFilter } from "./audit-filter";
+import { AuditExportButton } from "./export-button";
 
 const ACTION_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   insert: "outline",
@@ -93,11 +94,14 @@ export default async function AuditLogPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Audit Log</h1>
-        <p className="text-sm text-muted-foreground">
-          Append-only history of state changes, document access, and disbursements.
-        </p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Audit Log</h1>
+          <p className="text-sm text-muted-foreground">
+            Append-only history of state changes, document access, and disbursements.
+          </p>
+        </div>
+        <AuditExportButton />
       </div>
 
       <AuditFilter />

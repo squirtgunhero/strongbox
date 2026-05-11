@@ -22,6 +22,7 @@ export default async function PropertiesPage({
     state?: string;
     sort?: string;
     dir?: string;
+    page?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -61,6 +62,26 @@ export default async function PropertiesPage({
     new Set((allProperties || []).map((p) => p.address_state).filter(Boolean))
   ).sort();
 
+  // Pagination
+  const PAGE_SIZE = 50;
+  const page = Math.max(1, parseInt(sp.page || "1"));
+  const total = properties.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageProperties = properties.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE
+  );
+
+  function pageHref(p: number) {
+    const next = new URLSearchParams();
+    if (sp.q) next.set("q", sp.q);
+    if (sp.state) next.set("state", sp.state);
+    if (sp.sort) next.set("sort", sp.sort);
+    if (sp.dir) next.set("dir", sp.dir);
+    next.set("page", String(p));
+    return `/admin/properties?${next.toString()}`;
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Properties</h1>
@@ -79,14 +100,14 @@ export default async function PropertiesPage({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {!properties?.length ? (
+            {!pageProperties?.length ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                  No properties yet. They are created when you create a loan.
+                  No properties match your filters.
                 </TableCell>
               </TableRow>
             ) : (
-              properties.map((p) => (
+              pageProperties.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">
                     <Link
@@ -117,6 +138,26 @@ export default async function PropertiesPage({
           </TableBody>
         </Table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">
+            {total} propert{total === 1 ? "y" : "ies"} · Page {page} of {totalPages}
+          </span>
+          <div className="flex gap-2">
+            {page > 1 && (
+              <Link href={pageHref(page - 1)} className="hover:underline">
+                ← Previous
+              </Link>
+            )}
+            {page < totalPages && (
+              <Link href={pageHref(page + 1)} className="hover:underline">
+                Next →
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

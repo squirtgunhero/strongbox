@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Receipt, Mail, Download } from "lucide-react";
 import { DocumentUpload } from "./document-upload";
 import { DownloadButton } from "@/app/(portal)/portal/documents/download-button";
+import { InsuranceCard } from "./insurance-card";
 
 const PAYMENT_TYPE_LABELS: Record<string, string> = {
   interest: "Interest",
@@ -141,6 +142,20 @@ export default async function PortalLoanDetail({
           />
         )}
       </div>
+
+      <InsuranceCard
+        loanId={loan.id}
+        insurance={{
+          insurance_carrier: loan.insurance_carrier ?? null,
+          insurance_policy_number: loan.insurance_policy_number ?? null,
+          insurance_coverage_amount: loan.insurance_coverage_amount ?? null,
+          insurance_expiration_date: loan.insurance_expiration_date ?? null,
+          insurance_agent_name: loan.insurance_agent_name ?? null,
+          insurance_agent_email: loan.insurance_agent_email ?? null,
+          insurance_agent_phone: loan.insurance_agent_phone ?? null,
+          insurance_updated_at: loan.insurance_updated_at ?? null,
+        }}
+      />
 
       {rehabBudget > 0 && (
         <Card>

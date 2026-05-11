@@ -1,31 +1,9 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { LoansFilter } from "./loans-filter";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { formatCurrency, formatRate, formatDate } from "@/lib/format";
-import { LOAN_STATUS_LABELS, type LoanStatus } from "@/lib/types";
+import { LoansTable } from "./loans-table";
 import { Plus } from "lucide-react";
-
-const statusVariant: Record<LoanStatus, "default" | "secondary" | "destructive" | "outline"> = {
-  lead: "outline",
-  application: "outline",
-  underwriting: "secondary",
-  approved: "secondary",
-  funded: "default",
-  active: "default",
-  paid_off: "secondary",
-  defaulted: "destructive",
-  foreclosure: "destructive",
-};
 
 export default async function LoansPage({
   searchParams,
@@ -35,10 +13,27 @@ export default async function LoansPage({
     q?: string;
     officer?: string;
     maturity?: string;
+    sort?: string;
+    dir?: string;
+    page?: string;
   }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
+
+  const sortField = sp.sort || "created_at";
+  const sortDir = sp.dir === "asc";
+  const SORTABLE_DB_FIELDS = [
+    "created_at",
+    "loan_amount",
+    "interest_rate",
+    "term_months",
+    "status",
+    "maturity_date",
+  ];
+  const dbSort = SORTABLE_DB_FIELDS.includes(sortField)
+    ? sortField
+    : "created_at";
 
   let query = supabase
     .from("loans")
@@ -51,7 +46,7 @@ export default async function LoansPage({
       ),
       loan_officer:profiles!loans_loan_officer_id_fkey(full_name)
     `)
-    .order("created_at", { ascending: false });
+    .order(dbSort, { ascending: sortDir, nullsFirst: false });
 
   if (sp.status && sp.status !== "all") {
     query = query.eq("status", sp.status);
@@ -119,6 +114,26 @@ export default async function LoansPage({
     });
   }
 
+  // Pagination
+  const PAGE_SIZE = 50;
+  const page = Math.max(1, parseInt(sp.page || "1"));
+  const total = loans.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageLoans = loans.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Build pagination link helper
+  function pageHref(p: number) {
+    const next = new URLSearchParams();
+    if (sp.status) next.set("status", sp.status);
+    if (sp.q) next.set("q", sp.q);
+    if (sp.officer) next.set("officer", sp.officer);
+    if (sp.maturity) next.set("maturity", sp.maturity);
+    if (sp.sort) next.set("sort", sp.sort);
+    if (sp.dir) next.set("dir", sp.dir);
+    next.set("page", String(p));
+    return `/admin/loans?${next.toString()}`;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -131,79 +146,27 @@ export default async function LoansPage({
 
       <LoansFilter staff={staff || []} />
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Property</TableHead>
-              <TableHead>Borrower</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Loan Amount</TableHead>
-              <TableHead className="text-right">Rate</TableHead>
-              <TableHead>Term</TableHead>
-              <TableHead>Officer</TableHead>
-              <TableHead>Created</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {!loans?.length ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                  No loans yet.{" "}
-                  <Link href="/admin/loans/new" className="underline">
-                    Create the first one.
-                  </Link>
-                </TableCell>
-              </TableRow>
-            ) : (
-              loans.map((loan) => {
-                const primary = loan.loan_borrowers?.find(
-                  (lb: { is_primary: boolean }) => lb.is_primary
-                );
-                const borrowerName = primary?.borrower
-                  ? primary.borrower.borrower_type === "entity"
-                    ? primary.borrower.entity_name
-                    : `${primary.borrower.first_name} ${primary.borrower.last_name}`
-                  : "--";
+      <LoansTable loans={pageLoans as never} staff={staff || []} />
 
-                const address = loan.property
-                  ? `${loan.property.address_street}, ${loan.property.address_city}`
-                  : "--";
-
-                return (
-                  <TableRow key={loan.id}>
-                    <TableCell>
-                      <Link
-                        href={`/admin/loans/${loan.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {address}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{borrowerName}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant[loan.status as LoanStatus]}>
-                        {LOAN_STATUS_LABELS[loan.status as LoanStatus]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatCurrency(loan.loan_amount)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatRate(loan.interest_rate)}
-                    </TableCell>
-                    <TableCell>{loan.term_months}mo</TableCell>
-                    <TableCell>
-                      {loan.loan_officer?.full_name || "--"}
-                    </TableCell>
-                    <TableCell>{formatDate(loan.created_at)}</TableCell>
-                  </TableRow>
-                );
-              })
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">
+            {total} loan{total === 1 ? "" : "s"} · Page {page} of {totalPages}
+          </span>
+          <div className="flex gap-2">
+            {page > 1 && (
+              <Link href={pageHref(page - 1)} className="hover:underline">
+                ← Previous
+              </Link>
             )}
-          </TableBody>
-        </Table>
-      </div>
+            {page < totalPages && (
+              <Link href={pageHref(page + 1)} className="hover:underline">
+                Next →
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

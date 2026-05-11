@@ -126,6 +126,21 @@ export async function updateLoanStatus(loanId: string, newStatus: string) {
     .eq("id", loanId)
     .single();
 
+  // Per spec: never allow funding without all conditions cleared
+  if (newStatus === "funded") {
+    const { data: openConditions } = await supabase
+      .from("loan_conditions")
+      .select("description")
+      .eq("loan_id", loanId)
+      .eq("is_satisfied", false);
+
+    if (openConditions && openConditions.length > 0) {
+      throw new Error(
+        `Cannot fund: ${openConditions.length} condition${openConditions.length === 1 ? "" : "s"} still open. Clear all conditions before funding.`
+      );
+    }
+  }
+
   const updateData: Record<string, unknown> = { status: newStatus };
   if (newStatus === "defaulted") {
     updateData.is_defaulted = true;

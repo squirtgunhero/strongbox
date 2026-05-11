@@ -30,6 +30,7 @@ import {
   disburseDraw,
   rejectDraw,
 } from "@/lib/draws";
+import { X } from "lucide-react";
 import {
   requiresDualApproval,
   DUAL_APPROVAL_THRESHOLD,
@@ -157,25 +158,90 @@ function DrawActions({
   userHasApproved: boolean;
 }) {
   if (draw.status === "requested") {
-    return <InspectButton drawId={draw.id} />;
+    return (
+      <div className="flex gap-1 justify-end">
+        <InspectButton drawId={draw.id} />
+        <RejectButton drawId={draw.id} />
+      </div>
+    );
   }
   if (draw.status === "inspected") {
     return (
-      <ApproveButton
-        drawId={draw.id}
-        defaultAmount={draw.requested_amount}
-        alreadyApproved={userHasApproved}
-      />
+      <div className="flex gap-1 justify-end">
+        <ApproveButton
+          drawId={draw.id}
+          defaultAmount={draw.requested_amount}
+          alreadyApproved={userHasApproved}
+        />
+        <RejectButton drawId={draw.id} />
+      </div>
     );
   }
-  if (draw.status === "approved" && !userHasApproved) {
-    // Second approver path (only relevant if not yet over the threshold check on the action)
-    return <DisburseButton drawId={draw.id} />;
-  }
   if (draw.status === "approved") {
-    return <DisburseButton drawId={draw.id} />;
+    return (
+      <div className="flex gap-1 justify-end">
+        <DisburseButton drawId={draw.id} />
+        <RejectButton drawId={draw.id} />
+      </div>
+    );
   }
   return null;
+}
+
+function RejectButton({ drawId }: { drawId: string }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit() {
+    if (!reason.trim()) {
+      setError("Reason required");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      await rejectDraw(drawId, reason);
+      setOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button size="xs" variant="ghost" />}>
+        <X className="h-3 w-3" />
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Reject Draw</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Label htmlFor="reject_reason">Reason</Label>
+          <Textarea
+            id="reject_reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={3}
+            placeholder="e.g. Inspection found work incomplete"
+          />
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button
+            onClick={handleSubmit}
+            disabled={loading}
+            variant="destructive"
+            className="w-full"
+          >
+            {loading ? "Rejecting..." : "Reject Draw"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function InspectButton({ drawId }: { drawId: string }) {

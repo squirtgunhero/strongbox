@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { LoansFilter } from "./loans-filter";
 import {
   Table,
   TableBody,
@@ -26,10 +27,15 @@ const statusVariant: Record<LoanStatus, "default" | "secondary" | "destructive" 
   foreclosure: "destructive",
 };
 
-export default async function LoansPage() {
+export default async function LoansPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string; q?: string }>;
+}) {
+  const sp = await searchParams;
   const supabase = await createClient();
 
-  const { data: loans } = await supabase
+  let query = supabase
     .from("loans")
     .select(`
       *,
@@ -42,6 +48,43 @@ export default async function LoansPage() {
     `)
     .order("created_at", { ascending: false });
 
+  if (sp.status && sp.status !== "all") {
+    query = query.eq("status", sp.status);
+  }
+
+  const { data: allLoans } = await query;
+
+  // In-memory text search across property address and borrower name.
+  // For larger datasets we'd push this to Postgres FTS or ilike.
+  const search = sp.q?.trim().toLowerCase();
+  const loans = search
+    ? (allLoans || []).filter((l) => {
+        const propStr = l.property
+          ? `${l.property.address_street} ${l.property.address_city} ${l.property.address_state} ${l.property.address_zip}`.toLowerCase()
+          : "";
+        const borrowerStr = (l.loan_borrowers || [])
+          .map(
+            (lb: {
+              borrower: {
+                first_name?: string | null;
+                last_name?: string | null;
+                entity_name?: string | null;
+              };
+            }) =>
+              [
+                lb.borrower?.first_name,
+                lb.borrower?.last_name,
+                lb.borrower?.entity_name,
+              ]
+                .filter(Boolean)
+                .join(" ")
+          )
+          .join(" ")
+          .toLowerCase();
+        return propStr.includes(search) || borrowerStr.includes(search);
+      })
+    : allLoans;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -51,6 +94,8 @@ export default async function LoansPage() {
           New Loan
         </Button>
       </div>
+
+      <LoansFilter />
 
       <div className="rounded-md border">
         <Table>

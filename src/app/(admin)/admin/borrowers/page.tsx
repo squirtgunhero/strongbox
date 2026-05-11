@@ -46,7 +46,12 @@ export default async function BorrowersPage() {
               borrowers.map((b) => (
                 <TableRow key={b.id}>
                   <TableCell className="font-medium">
-                    {borrowerDisplayName(b)}
+                    <Link
+                      href={`/admin/borrowers/${b.id}`}
+                      className="hover:underline"
+                    >
+                      {borrowerDisplayName(b)}
+                    </Link>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">

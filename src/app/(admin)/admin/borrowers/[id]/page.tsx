@@ -1,0 +1,197 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  formatCurrency,
+  formatRate,
+  formatDate,
+  borrowerDisplayName,
+  propertyAddress,
+} from "@/lib/format";
+import { LOAN_STATUS_LABELS, type LoanStatus } from "@/lib/types";
+import { LinkBorrowerCard } from "./link-borrower-card";
+
+export default async function BorrowerDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  const { data: borrower } = await supabase
+    .from("borrowers")
+    .select(`
+      *,
+      profile:profiles(full_name, email),
+      loan_borrowers(
+        is_primary,
+        loan:loans(
+          id, status, loan_amount, interest_rate, maturity_date, current_principal,
+          property:properties(address_street, address_city, address_state, address_zip)
+        )
+      )
+    `)
+    .eq("id", id)
+    .single();
+
+  if (!borrower) notFound();
+
+  const displayName = borrowerDisplayName(borrower);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">{displayName}</h1>
+        <div className="mt-2 flex items-center gap-3 text-sm text-muted-foreground">
+          <Badge variant="outline">
+            {borrower.borrower_type === "entity" ? "Entity" : "Individual"}
+          </Badge>
+          {borrower.email && <span>{borrower.email}</span>}
+          {borrower.phone && <span>· {borrower.phone}</span>}
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Profile</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <Row label="Type" value={borrower.borrower_type === "entity" ? "Entity" : "Individual"} />
+            {borrower.borrower_type === "individual" ? (
+              <>
+                <Row label="Name" value={`${borrower.first_name} ${borrower.last_name}`} />
+                {borrower.credit_score && (
+                  <Row label="Credit Score" value={String(borrower.credit_score)} />
+                )}
+              </>
+            ) : (
+              <>
+                <Row label="Entity Name" value={borrower.entity_name} />
+                {borrower.formation_state && (
+                  <Row label="Formation State" value={borrower.formation_state} />
+                )}
+              </>
+            )}
+            <Row label="Email" value={borrower.email || "--"} />
+            <Row label="Phone" value={borrower.phone || "--"} />
+            <Row label="Prior Deals" value={String(borrower.deals_completed)} />
+            <Row label="Created" value={formatDate(borrower.created_at)} />
+            {borrower.notes && (
+              <div className="pt-2">
+                <div className="text-xs text-muted-foreground mb-1">Notes</div>
+                <p className="text-sm">{borrower.notes}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <LinkBorrowerCard
+          borrowerId={borrower.id}
+          currentUserId={borrower.user_id}
+          linkedProfile={borrower.profile}
+        />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Loans</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!borrower.loan_borrowers?.length ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No loans yet.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Property</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Loan</TableHead>
+                  <TableHead className="text-right">Balance</TableHead>
+                  <TableHead className="text-right">Rate</TableHead>
+                  <TableHead>Maturity</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {borrower.loan_borrowers.map(
+                  (
+                    lb: {
+                      is_primary: boolean;
+                      loan: {
+                        id: string;
+                        status: string;
+                        loan_amount: number;
+                        current_principal: number;
+                        interest_rate: number;
+                        maturity_date: string | null;
+                        property: {
+                          address_street: string;
+                          address_city: string;
+                          address_state: string;
+                          address_zip: string;
+                        } | null;
+                      };
+                    },
+                    idx: number
+                  ) => (
+                    <TableRow key={idx}>
+                      <TableCell>
+                        {lb.loan.property ? (
+                          <Link
+                            href={`/admin/loans/${lb.loan.id}`}
+                            className="font-medium hover:underline"
+                          >
+                            {propertyAddress(lb.loan.property)}
+                          </Link>
+                        ) : (
+                          "--"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {LOAN_STATUS_LABELS[lb.loan.status as LoanStatus]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(lb.loan.loan_amount)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(lb.loan.current_principal)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatRate(lb.loan.interest_rate)}
+                      </TableCell>
+                      <TableCell>{formatDate(lb.loan.maturity_date)}</TableCell>
+                    </TableRow>
+                  )
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium">{value}</span>
+    </div>
+  );
+}

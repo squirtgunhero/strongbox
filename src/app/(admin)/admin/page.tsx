@@ -493,20 +493,35 @@ export default async function AdminDashboard({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Loans by Status</CardTitle>
+          <CardTitle className="text-sm">Loans by status</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Across the full lifecycle
+          </p>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-9">
-            {(Object.keys(LOAN_STATUS_LABELS) as LoanStatus[]).map((status) => (
-              <div key={status} className="text-center">
-                <div className="text-lg font-semibold">
-                  {statusCounts[status] || 0}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {LOAN_STATUS_LABELS[status]}
-                </div>
-              </div>
-            ))}
+        <CardContent className="!p-0">
+          <div className="grid grid-cols-9">
+            {(Object.keys(LOAN_STATUS_LABELS) as LoanStatus[]).map(
+              (status, i, arr) => {
+                const count = statusCounts[status] || 0;
+                return (
+                  <div
+                    key={status}
+                    className={`px-3.5 py-4 ${i < arr.length - 1 ? "border-r" : ""}`}
+                  >
+                    <div
+                      className={`mono text-[26px] font-semibold tracking-[-0.02em] leading-none ${
+                        count > 0 ? "text-foreground" : "text-muted-foreground"
+                      }`}
+                    >
+                      {count}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-1.5">
+                      {LOAN_STATUS_LABELS[status]}
+                    </div>
+                  </div>
+                );
+              }
+            )}
           </div>
         </CardContent>
       </Card>

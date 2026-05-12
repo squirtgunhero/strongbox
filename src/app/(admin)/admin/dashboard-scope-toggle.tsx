@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
+/**
+ * Pill-style scope toggle — single bordered container, two buttons inside,
+ * active button gets a muted background tint.
+ */
 export function DashboardScopeToggle({
   defaultMine,
 }: {
@@ -14,16 +18,24 @@ export function DashboardScopeToggle({
     explicitScope === "mine" || (explicitScope === null && defaultMine);
 
   return (
-    <div className="inline-flex rounded-md border bg-background overflow-hidden text-xs">
+    <div className="inline-flex p-0.5 rounded-lg border bg-card text-[12px] gap-0.5">
       <Link
         href="?scope=mine"
-        className={`px-3 py-1.5 ${isMine ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+        className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+          isMine
+            ? "bg-muted text-foreground"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
       >
         My loans
       </Link>
       <Link
         href="?scope=all"
-        className={`px-3 py-1.5 ${!isMine ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+        className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+          !isMine
+            ? "bg-muted text-foreground"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
       >
         All loans
       </Link>

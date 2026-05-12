@@ -18,7 +18,13 @@ interface Staff {
   full_name: string;
 }
 
-export function LoansFilter({ staff }: { staff: Staff[] }) {
+export function LoansFilter({
+  staff,
+  tagOptions = [],
+}: {
+  staff: Staff[];
+  tagOptions?: string[];
+}) {
   const router = useRouter();
   const params = useSearchParams();
   const [, startTransition] = useTransition();
@@ -26,6 +32,7 @@ export function LoansFilter({ staff }: { staff: Staff[] }) {
   const currentStatus = params.get("status") || "all";
   const currentOfficer = params.get("officer") || "all";
   const currentMaturity = params.get("maturity") || "all";
+  const currentTag = params.get("tag") || "all";
   const currentSearch = params.get("q") || "";
   const mineActive = params.get("mine") === "1";
 
@@ -130,6 +137,26 @@ export function LoansFilter({ staff }: { staff: Staff[] }) {
           </SelectContent>
         </Select>
       </div>
+      {tagOptions.length > 0 && (
+        <div className="w-[180px]">
+          <Select
+            value={currentTag}
+            onValueChange={(v) => v && update({ tag: v })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Any tag" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any tag</SelectItem>
+              {tagOptions.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {t}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </div>
   );
 }

@@ -21,15 +21,38 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
 export default async function NotificationsPage() {
   const supabase = await createClient();
 
-  const { data: notifications } = await supabase
-    .from("notifications")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(100);
+  // Counts for the last 30 days for delivery metrics
+  const thirtyDaysAgo = new Date(
+    Date.now() - 30 * 24 * 60 * 60 * 1000
+  ).toISOString();
+
+  const [{ data: notifications }, { data: recentSent }] = await Promise.all([
+    supabase
+      .from("notifications")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100),
+    supabase
+      .from("notifications")
+      .select("status, delivered_at, opened_at, bounced_at, channel")
+      .gte("created_at", thirtyDaysAgo)
+      .eq("channel", "email"),
+  ]);
 
   const all = notifications || [];
   const pending = all.filter((n) => n.status === "pending");
   const failed = all.filter((n) => n.status === "failed");
+
+  // Delivery metrics (last 30 days, email only)
+  const emails = recentSent || [];
+  const sent30 = emails.filter((n) => n.status === "sent").length;
+  const delivered30 = emails.filter((n) => n.delivered_at).length;
+  const opened30 = emails.filter((n) => n.opened_at).length;
+  const bounced30 = emails.filter((n) => n.bounced_at).length;
+  const total30 = emails.length;
+  const deliveryRate = total30 > 0 ? delivered30 / total30 : 0;
+  const openRate = delivered30 > 0 ? opened30 / delivered30 : 0;
+  const bounceRate = total30 > 0 ? bounced30 / total30 : 0;
 
   return (
     <div className="space-y-6">
@@ -37,21 +60,41 @@ export default async function NotificationsPage() {
         <div>
           <h1 className="text-2xl font-bold">Notifications</h1>
           <p className="text-sm text-muted-foreground">
-            Outgoing notification queue. Email is delivered via Resend; SMS via
-            Twilio is not yet wired.
+            Outgoing notification queue and delivery metrics.
           </p>
         </div>
         <FlushButton pendingCount={pending.length} />
       </div>
 
-      {pending.length > 0 && (
+      {total30 > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Badge variant="outline">Pending</Badge>
-              <span>{pending.length} awaiting delivery</span>
+            <CardTitle className="text-sm">
+              Email Delivery (last 30 days)
             </CardTitle>
           </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-sm">
+              <Stat label="Sent" value={String(sent30)} />
+              <Stat
+                label="Delivered"
+                value={`${(deliveryRate * 100).toFixed(1)}%`}
+                sub={`${delivered30} of ${total30}`}
+              />
+              <Stat
+                label="Opened"
+                value={`${(openRate * 100).toFixed(1)}%`}
+                sub={`${opened30} of ${delivered30 || 0}`}
+              />
+              <Stat
+                label="Bounced"
+                value={`${(bounceRate * 100).toFixed(1)}%`}
+                sub={`${bounced30}`}
+                highlight={bounceRate > 0.05}
+              />
+              <Stat label="Pending" value={String(pending.length)} />
+            </div>
+          </CardContent>
         </Card>
       )}
 
@@ -106,6 +149,11 @@ export default async function NotificationsPage() {
                             {n.failure_reason}
                           </span>
                         )}
+                        {n.opened_at && (
+                          <span className="text-xs text-muted-foreground">
+                            opened
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-sm">{n.channel}</TableCell>
@@ -125,6 +173,30 @@ export default async function NotificationsPage() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  sub,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div
+        className={`text-lg font-semibold ${highlight ? "text-destructive" : ""}`}
+      >
+        {value}
+      </div>
+      {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
     </div>
   );
 }

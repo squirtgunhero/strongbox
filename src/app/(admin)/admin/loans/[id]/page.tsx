@@ -39,6 +39,7 @@ import { OfficerSelect } from "./officer-select";
 import { StatusTimeline } from "./status-timeline";
 import { InsuranceDisplay } from "./insurance-display";
 import { PaymentIntentsSection } from "./payment-intents-section";
+import { TagsEditor } from "./tags-editor";
 
 export default async function LoanDetailPage({
   params,
@@ -177,6 +178,9 @@ export default async function LoanDetailPage({
                 {LOAN_PURPOSE_LABELS[loan.loan_purpose as LoanPurpose]}
               </span>
             )}
+          </div>
+          <div className="mt-2">
+            <TagsEditor loanId={loan.id} initialTags={loan.tags || []} />
           </div>
         </div>
         <LoanStatusControls loanId={loan.id} currentStatus={loan.status} />

@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatDate, propertyAddress } from "@/lib/format";
+import { PaymentsFilter } from "./payments-filter";
 
 const PAYMENT_TYPE_LABELS: Record<string, string> = {
   interest: "Interest",
@@ -20,10 +21,15 @@ const PAYMENT_TYPE_LABELS: Record<string, string> = {
   escrow: "Escrow",
 };
 
-export default async function PortalPayments() {
+export default async function PortalPayments({
+  searchParams,
+}: {
+  searchParams: Promise<{ loan?: string; type?: string }>;
+}) {
+  const sp = await searchParams;
   const supabase = await createClient();
 
-  const { data: payments } = await supabase
+  let query = supabase
     .from("payments")
     .select(`
       *,
@@ -31,18 +37,35 @@ export default async function PortalPayments() {
     `)
     .order("due_date", { ascending: false });
 
+  if (sp.loan && sp.loan !== "all") query = query.eq("loan_id", sp.loan);
+  if (sp.type && sp.type !== "all") query = query.eq("payment_type", sp.type);
+
+  const [{ data: payments }, { data: loans }] = await Promise.all([
+    query,
+    supabase
+      .from("loans")
+      .select(`
+        id,
+        property:properties(address_street, address_city, address_state, address_zip)
+      `),
+  ]);
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Payments</h1>
 
+      <PaymentsFilter loans={(loans || []) as never} />
+
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">All Payments</CardTitle>
+          <CardTitle className="text-sm">
+            {payments?.length || 0} payment{(payments?.length || 0) === 1 ? "" : "s"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {!payments?.length ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              No payments recorded yet.
+              No payments match your filters.
             </p>
           ) : (
             <Table>

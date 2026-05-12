@@ -18,6 +18,7 @@ export default async function LoansPage({
     dir?: string;
     page?: string;
     mine?: string;
+    tag?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -58,6 +59,11 @@ export default async function LoansPage({
     query = query.eq("status", sp.status);
   }
 
+  // Tag filter
+  if (sp.tag && sp.tag !== "all") {
+    query = query.contains("tags", [sp.tag]);
+  }
+
   // Officer filter (explicit takes precedence over "mine")
   if (sp.officer && sp.officer !== "all") {
     if (sp.officer === "unassigned") {
@@ -76,6 +82,13 @@ export default async function LoansPage({
     .select("id, full_name")
     .in("role", ["admin", "loan_officer"])
     .order("full_name", { ascending: true });
+
+  // Distinct tags across all loans for the filter dropdown.
+  // We re-query without the tag filter so the dropdown isn't self-narrowing.
+  const { data: tagRows } = await supabase.from("loans").select("tags");
+  const tagOptions = Array.from(
+    new Set(((tagRows || []) as { tags: string[] | null }[]).flatMap((r) => r.tags || []))
+  ).sort();
 
   // In-memory text search across property address and borrower name.
   // For larger datasets we'd push this to Postgres FTS or ilike.
@@ -156,7 +169,7 @@ export default async function LoansPage({
         </div>
       </div>
 
-      <LoansFilter staff={staff || []} />
+      <LoansFilter staff={staff || []} tagOptions={tagOptions} />
 
       <LoansTable loans={pageLoans as never} staff={staff || []} />
 

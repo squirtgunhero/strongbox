@@ -27,6 +27,10 @@ export async function saveSettings(formData: FormData) {
       max_ltarv: parseFloat(formData.get("max_ltarv") as string) / 100,
       max_ltv: parseFloat(formData.get("max_ltv") as string) / 100,
       max_ltc: parseFloat(formData.get("max_ltc") as string) / 100,
+      max_borrower_concentration:
+        parseFloat(formData.get("max_borrower_concentration") as string) / 100,
+      max_state_concentration:
+        parseFloat(formData.get("max_state_concentration") as string) / 100,
     })
     .eq("id", 1);
 

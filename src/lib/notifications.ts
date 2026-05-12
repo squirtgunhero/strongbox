@@ -86,13 +86,19 @@ export async function queueNotification(
     if (channel === "email") {
       if (!args.recipientEmail) return;
       if (!resend) return; // no provider configured — leave pending
-      const { error } = await resend.emails.send({
+      const { data: sendData, error } = await resend.emails.send({
         from: FROM_EMAIL,
         to: args.recipientEmail,
         subject: args.subject,
         text: args.body,
       });
       sendError = error ? error.message || String(error) : null;
+      if (!sendError && sendData?.id) {
+        await supabase
+          .from("notifications")
+          .update({ provider_message_id: sendData.id })
+          .eq("id", row.id);
+      }
     } else if (channel === "sms") {
       if (!args.recipientPhone) return;
       const result = await sendSms(args.recipientPhone, args.body);

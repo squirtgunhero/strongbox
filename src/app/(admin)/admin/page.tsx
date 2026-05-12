@@ -40,7 +40,8 @@ export default async function AdminDashboard({
 
   let loanQuery = supabase.from("loans").select(`
     *,
-    property:properties(address_street, address_city, address_state)
+    property:properties(address_street, address_city, address_state),
+    loan_borrowers(is_primary, borrower:borrowers(id, first_name, last_name, entity_name, borrower_type))
   `);
   if (isMine && user) {
     loanQuery = loanQuery.eq("loan_officer_id", user.id);
@@ -50,6 +51,7 @@ export default async function AdminDashboard({
     { data: loans },
     { data: draws },
     { data: signatures },
+    { data: settings },
   ] = await Promise.all([
     loanQuery,
     supabase
@@ -68,6 +70,11 @@ export default async function AdminDashboard({
       `)
       .in("status", ["draft", "sent", "viewed"])
       .order("created_at", { ascending: false }),
+    supabase
+      .from("org_settings")
+      .select("max_borrower_concentration, max_state_concentration")
+      .eq("id", 1)
+      .single(),
   ]);
 
   const allLoans = loans || [];
@@ -93,6 +100,69 @@ export default async function AdminDashboard({
     );
     return days <= 30;
   });
+
+  // Concentration: borrower / state with > configured threshold of deployed
+  const maxBorrowerPct =
+    Number(settings?.max_borrower_concentration) || 0.20;
+  const maxStatePct =
+    Number(settings?.max_state_concentration) || 0.40;
+
+  const concentrationAlerts: {
+    kind: "borrower" | "state";
+    label: string;
+    pct: number;
+    total: number;
+  }[] = [];
+
+  if (totalDeployed > 0) {
+    const byBorrower = new Map<string, { name: string; total: number }>();
+    const byState = new Map<string, number>();
+
+    for (const l of activeLoans) {
+      const primary = (
+        l as unknown as {
+          loan_borrowers?: {
+            is_primary: boolean;
+            borrower: {
+              id: string;
+              first_name: string | null;
+              last_name: string | null;
+              entity_name: string | null;
+              borrower_type: string;
+            };
+          }[];
+        }
+      ).loan_borrowers?.find((lb) => lb.is_primary);
+      if (primary?.borrower) {
+        const name =
+          primary.borrower.borrower_type === "entity"
+            ? primary.borrower.entity_name || "—"
+            : `${primary.borrower.first_name || ""} ${primary.borrower.last_name || ""}`.trim() ||
+              "—";
+        const entry = byBorrower.get(primary.borrower.id) || { name, total: 0 };
+        entry.total += Number(l.current_principal);
+        byBorrower.set(primary.borrower.id, entry);
+      }
+      const state = l.property?.address_state;
+      if (state) {
+        byState.set(state, (byState.get(state) || 0) + Number(l.current_principal));
+      }
+    }
+
+    for (const { name, total } of byBorrower.values()) {
+      const pct = total / totalDeployed;
+      if (pct > maxBorrowerPct) {
+        concentrationAlerts.push({ kind: "borrower", label: name, pct, total });
+      }
+    }
+    for (const [state, total] of byState) {
+      const pct = total / totalDeployed;
+      if (pct > maxStatePct) {
+        concentrationAlerts.push({ kind: "state", label: state, pct, total });
+      }
+    }
+    concentrationAlerts.sort((a, b) => b.pct - a.pct);
+  }
 
   // Insurance attention = active loans whose insurance is missing, expired,
   // or expiring within 30 days
@@ -225,6 +295,46 @@ export default async function AdminDashboard({
           })}
         />
       </div>
+
+      {concentrationAlerts.length > 0 && (
+        <Card className="border-yellow-500/40 bg-yellow-500/5">
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+              Concentration Alerts
+              <span className="text-xs font-normal text-muted-foreground ml-auto">
+                Thresholds: {(maxBorrowerPct * 100).toFixed(0)}% borrower /{" "}
+                {(maxStatePct * 100).toFixed(0)}% state
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 text-sm">
+              {concentrationAlerts.map((a, idx) => (
+                <li
+                  key={idx}
+                  className="flex items-center justify-between border-b last:border-0 pb-2 last:pb-0"
+                >
+                  <div>
+                    <span className="capitalize text-xs text-muted-foreground mr-2">
+                      {a.kind}
+                    </span>
+                    <span className="font-medium">{a.label}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-yellow-700 dark:text-yellow-500">
+                      {(a.pct * 100).toFixed(1)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatCurrency(a.total)}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {insuranceAttention.length > 0 && (
         <Worklist

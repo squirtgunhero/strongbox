@@ -59,6 +59,7 @@ export default async function PortalLoanDetail({
     { data: draws },
     { data: docs },
     { data: history },
+    { data: propertyDocs },
   ] = await Promise.all([
     supabase
       .from("payments")
@@ -76,6 +77,13 @@ export default async function PortalLoanDetail({
       .eq("loan_id", id)
       .order("created_at", { ascending: false }),
     supabase.rpc("loan_history", { loan_id_arg: id }),
+    loan.property_id
+      ? supabase
+          .from("property_documents")
+          .select("*")
+          .eq("property_id", loan.property_id)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
   ]);
 
   const lastInterestPayment = (payments || []).find((p) => p.applied_to_interest > 0);
@@ -251,6 +259,48 @@ export default async function PortalLoanDetail({
           )}
         </CardContent>
       </Card>
+
+      {(propertyDocs || []).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Property Documents</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Filename</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Uploaded</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(propertyDocs || []).map(
+                  (d: {
+                    id: string;
+                    filename: string;
+                    category: string;
+                    storage_path: string;
+                    created_at: string;
+                  }) => (
+                    <TableRow key={d.id}>
+                      <TableCell className="font-medium">{d.filename}</TableCell>
+                      <TableCell className="capitalize">
+                        {d.category.replace(/_/g, " ")}
+                      </TableCell>
+                      <TableCell>{formatDate(d.created_at)}</TableCell>
+                      <TableCell>
+                        <DownloadButton storagePath={d.storage_path} />
+                      </TableCell>
+                    </TableRow>
+                  )
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">

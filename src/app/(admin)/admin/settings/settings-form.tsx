@@ -13,6 +13,8 @@ interface Settings {
   max_ltarv: number;
   max_ltv: number;
   max_ltc: number;
+  max_borrower_concentration: number;
+  max_state_concentration: number;
 }
 
 export function SettingsForm({ settings }: { settings: Settings | null }) {
@@ -100,6 +102,41 @@ export function SettingsForm({ settings }: { settings: Settings | null }) {
             type="number"
             step="0.01"
             defaultValue={(Number(settings?.max_ltc) || 0.85) * 100}
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="max_borrower_concentration">
+            Max Single-Borrower Concentration (%)
+          </Label>
+          <Input
+            id="max_borrower_concentration"
+            name="max_borrower_concentration"
+            type="number"
+            step="0.01"
+            defaultValue={
+              (Number(settings?.max_borrower_concentration) || 0.20) * 100
+            }
+          />
+          <p className="text-xs text-muted-foreground">
+            Dashboard warns when one borrower exceeds this share of deployed
+            capital.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="max_state_concentration">
+            Max Single-State Concentration (%)
+          </Label>
+          <Input
+            id="max_state_concentration"
+            name="max_state_concentration"
+            type="number"
+            step="0.01"
+            defaultValue={
+              (Number(settings?.max_state_concentration) || 0.40) * 100
+            }
           />
         </div>
       </div>

@@ -23,7 +23,7 @@ export function DashboardHero({
     <div className="rounded-3xl border bg-card px-8 py-8 shadow-[var(--shadow-card)]">
       <div className="flex flex-wrap items-start justify-between gap-5">
         <div className="min-w-0 max-w-[920px]">
-          <h1 className="text-[52px] font-semibold tracking-[-0.04em] leading-[0.96] text-foreground">
+          <h1 className="text-[50px] font-semibold tracking-[-0.04em] leading-[0.96] text-foreground">
             {title}
           </h1>
           <p className="mt-3.5 text-[16px] text-muted-foreground">{subtitle}</p>
@@ -75,7 +75,7 @@ function StatusChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em]",
+        "inline-flex items-center rounded-full border px-3 py-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em]",
         tone === "ok" &&
           "border-[color:var(--status-success)]/30 bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]",
         tone === "warn" &&

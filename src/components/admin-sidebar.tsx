@@ -44,7 +44,7 @@ export function AdminSidebar({ profile, isOpen, onClose }: AdminSidebarProps) {
           <div className="text-[17px] font-semibold tracking-tight text-white">
             StrongBox
           </div>
-          <div className="text-[11px] font-medium uppercase tracking-[0.1em] text-white/45">
+          <div className="text-[10.5px] font-medium uppercase tracking-[0.1em] text-white/45">
             Private Credit OS
           </div>
         </div>
@@ -107,7 +107,7 @@ export function AdminSidebar({ profile, isOpen, onClose }: AdminSidebarProps) {
             {initials || "U"}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[14px] font-medium text-white">
+            <div className="truncate text-[13.5px] font-medium text-white">
               {profile.full_name}
             </div>
             <div className="truncate text-[11px] capitalize text-white/52">

@@ -109,7 +109,7 @@ export function ActionCenter({ rows }: ActionCenterProps) {
                 <div
                   className={`grid h-11 w-11 place-items-center rounded-xl ${tone.iconBg}`}
                 >
-                  <Icon className="h-4.5 w-4.5" />
+                  <Icon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
                   <div className="text-[15px] font-semibold leading-tight">{item.title}</div>

@@ -33,7 +33,7 @@ export function AdminShell({ profile, children }: AdminShellProps) {
   }, []);
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
+    <div className="no-serif flex min-h-screen w-full bg-background">
       {isSidebarOpen && (
         <button
           type="button"

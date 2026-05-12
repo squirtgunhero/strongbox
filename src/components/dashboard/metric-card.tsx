@@ -34,7 +34,7 @@ export function MetricCard({
         </div>
         {Icon && (
           <div className="grid h-10 w-10 place-items-center rounded-xl border bg-muted/55 text-muted-foreground">
-            <Icon className="h-4.5 w-4.5" />
+            <Icon className="h-4 w-4" />
           </div>
         )}
       </div>
@@ -45,7 +45,7 @@ export function MetricCard({
         {delta && (
           <span
             className={cn(
-              "inline-flex items-center gap-0.5 text-[14px] font-semibold tracking-tight",
+              "inline-flex items-center gap-0.5 text-[13px] font-semibold tracking-tight",
               delta.dir === "up" && "text-[color:var(--status-success)]",
               delta.dir === "down" && "text-primary",
               delta.dir === "flat" && "text-muted-foreground"
@@ -59,7 +59,7 @@ export function MetricCard({
       <div className="mt-auto flex min-h-[30px] items-center justify-between gap-3">
         {status && <StatusPill tone={status.tone}>{status.label}</StatusPill>}
         {sub && (
-          <div className="truncate text-[14px] text-muted-foreground">
+          <div className="truncate text-[13px] text-muted-foreground">
             {sub}
           </div>
         )}
@@ -185,7 +185,7 @@ function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-semibold uppercase tracking-[0.05em]",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.05em]",
         toneStyles
       )}
     >

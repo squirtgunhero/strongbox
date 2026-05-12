@@ -69,7 +69,7 @@ export function PipelineBoard({ stages, totalRequested }: PipelineBoardProps) {
                 <div className="mt-2 tabular text-[16px] font-semibold text-foreground/85">
                   {stage.amount ? `$${(stage.amount / 1_000_000).toFixed(1)}M` : "$0.0M"}
                 </div>
-                <p className="mt-2 line-clamp-2 text-[12px] leading-snug text-muted-foreground">
+                <p className="mt-2 line-clamp-2 text-[12.5px] leading-snug text-muted-foreground">
                   {stage.description}
                 </p>
               </Link>

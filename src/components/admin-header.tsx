@@ -48,7 +48,7 @@ export function AdminHeader({ profile, onMenuToggle }: AdminHeaderProps) {
           <div className="text-[11px] font-semibold uppercase tracking-[0.11em] text-muted-foreground">
             {routeMeta.section}
           </div>
-          <h1 className="mt-1 truncate text-[24px] font-semibold tracking-[-0.02em] text-foreground">
+          <h1 className="mt-1 truncate text-[22px] font-semibold tracking-[-0.02em] text-foreground">
             {routeMeta.title}
           </h1>
         </div>
@@ -62,7 +62,7 @@ export function AdminHeader({ profile, onMenuToggle }: AdminHeaderProps) {
             type="text"
             aria-label="Search loans, borrowers, and properties"
             placeholder={routeMeta.description}
-            className="flex-1 border-0 bg-transparent text-[14px] text-foreground outline-0 placeholder:text-muted-foreground"
+            className="flex-1 border-0 bg-transparent text-[13.5px] text-foreground outline-0 placeholder:text-muted-foreground"
           />
           <span className="mono rounded-md border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
             ⌘K
@@ -91,7 +91,7 @@ export function AdminHeader({ profile, onMenuToggle }: AdminHeaderProps) {
           <span className="grid h-8 w-8 place-items-center rounded-full bg-primary/10 text-[12px] font-semibold text-primary">
             {initials}
           </span>
-          <span className="hidden text-[14px] font-medium sm:inline">
+          <span className="hidden text-[13.5px] font-medium sm:inline">
             {profile.full_name}
           </span>
         </DropdownMenuTrigger>

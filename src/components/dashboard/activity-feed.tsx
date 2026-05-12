@@ -80,7 +80,7 @@ export function ActivityFeed({ entries }: ActivityFeedProps) {
                       <span className="mr-1.5 font-semibold text-foreground">
                         {entry.who}
                       </span>
-                      <span className="text-muted-foreground">{entry.text}</span>
+                      <span className="text-[12.5px] text-muted-foreground">{entry.text}</span>
                     </div>
                   </div>
                   <span className="whitespace-nowrap text-[11px] text-muted-foreground">

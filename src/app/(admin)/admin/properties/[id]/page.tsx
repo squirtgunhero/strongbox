@@ -14,6 +14,7 @@ import {
 import { formatCurrency, formatRate, propertyAddress } from "@/lib/format";
 import { LOAN_STATUS_LABELS, type LoanStatus } from "@/lib/types";
 import { PropertyEditForm } from "./property-edit-form";
+import { PropertyDocuments } from "./property-documents";
 
 export default async function PropertyDetailPage({
   params,
@@ -23,14 +24,21 @@ export default async function PropertyDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const { data: property } = await supabase
-    .from("properties")
-    .select(`
-      *,
-      loans:loans(id, status, loan_amount, current_principal, interest_rate)
-    `)
-    .eq("id", id)
-    .single();
+  const [{ data: property }, { data: documents }] = await Promise.all([
+    supabase
+      .from("properties")
+      .select(`
+        *,
+        loans:loans(id, status, loan_amount, current_principal, interest_rate)
+      `)
+      .eq("id", id)
+      .single(),
+    supabase
+      .from("property_documents")
+      .select("*")
+      .eq("property_id", id)
+      .order("created_at", { ascending: false }),
+  ]);
 
   if (!property) notFound();
 
@@ -51,6 +59,8 @@ export default async function PropertyDetailPage({
           <PropertyEditForm property={property} />
         </CardContent>
       </Card>
+
+      <PropertyDocuments propertyId={property.id} documents={documents || []} />
 
       <Card>
         <CardHeader>

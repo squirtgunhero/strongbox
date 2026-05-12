@@ -45,22 +45,41 @@ export async function submitPaymentIntent(loanId: string, formData: FormData) {
     .single();
   if (error) throw new Error(error.message);
 
-  // Notify staff: find loan officer and any admins
+  // Notify loan officer + all admins so a wire never sits unverified
   const { data: loan } = await supabase
     .from("loans")
     .select(`
+      loan_officer_id,
       loan_officer:profiles!loans_loan_officer_id_fkey(email, full_name)
     `)
     .eq("id", loanId)
-    .single<{ loan_officer: { email: string; full_name: string } | null }>();
+    .single<{
+      loan_officer_id: string | null;
+      loan_officer: { email: string; full_name: string } | null;
+    }>();
+
+  const { data: admins } = await supabase
+    .from("profiles")
+    .select("id, email")
+    .eq("role", "admin");
 
   const subject = `Payment notice: $${amount.toLocaleString()} via ${method}`;
   const body = `A borrower has submitted a payment notice on loan ${loanId.slice(0, 8)}. Amount: $${amount.toLocaleString()}. Method: ${method}. Reference: ${referenceNumber || "—"}. Sent: ${sentDate}. Expected: ${expectedArrival || "—"}. Verify in the admin loan detail page.`;
 
+  // Distinct recipients (loan officer + admins)
+  const recipients = new Map<string, string | null>();
   if (loan?.loan_officer?.email) {
+    recipients.set(loan.loan_officer.email, loan.loan_officer_id);
+  }
+  for (const a of admins || []) {
+    if (a.email) recipients.set(a.email, a.id);
+  }
+
+  for (const [email, userId] of recipients) {
     await queueNotification(supabase, {
       channel: "email",
-      recipientEmail: loan.loan_officer.email,
+      recipientEmail: email,
+      recipientUserId: userId,
       subject,
       body,
       eventType: "payment_intent.submitted",

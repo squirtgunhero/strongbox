@@ -21,6 +21,7 @@ import {
 import { LOAN_STATUS_LABELS, type LoanStatus } from "@/lib/types";
 import { ChevronLeft } from "lucide-react";
 import { InsuranceDisplay } from "@/app/(admin)/admin/loans/[id]/insurance-display";
+import { LoanHistory } from "@/components/loan-history";
 
 export default async function InvestorLoanDetail({
   params,
@@ -54,7 +55,11 @@ export default async function InvestorLoanDetail({
 
   if (!loan || !investor) notFound();
 
-  const [{ data: position }, { data: distributions }] = await Promise.all([
+  const [
+    { data: position },
+    { data: distributions },
+    { data: history },
+  ] = await Promise.all([
     supabase
       .from("investor_positions")
       .select("*")
@@ -67,6 +72,7 @@ export default async function InvestorLoanDetail({
       .eq("loan_id", id)
       .eq("investor_id", investor.id)
       .order("distribution_date", { ascending: false }),
+    supabase.rpc("loan_history", { loan_id_arg: id }),
   ]);
 
   if (!position) notFound();
@@ -182,6 +188,8 @@ export default async function InvestorLoanDetail({
           )}
         </CardContent>
       </Card>
+
+      <LoanHistory entries={(history || []) as never} />
     </div>
   );
 }

@@ -24,6 +24,7 @@ import { DocumentUpload } from "./document-upload";
 import { DownloadButton } from "@/app/(portal)/portal/documents/download-button";
 import { InsuranceCard } from "./insurance-card";
 import { PaymentIntentDialog } from "./payment-intent-dialog";
+import { LoanHistory } from "@/components/loan-history";
 
 const PAYMENT_TYPE_LABELS: Record<string, string> = {
   interest: "Interest",
@@ -53,24 +54,29 @@ export default async function PortalLoanDetail({
 
   if (!loan) notFound();
 
-  const [{ data: payments }, { data: draws }, { data: docs }] =
-    await Promise.all([
-      supabase
-        .from("payments")
-        .select("*")
-        .eq("loan_id", id)
-        .order("due_date", { ascending: false }),
-      supabase
-        .from("draws")
-        .select("*, line_items:draw_line_items(description, amount)")
-        .eq("loan_id", id)
-        .order("requested_at", { ascending: false }),
-      supabase
-        .from("loan_documents")
-        .select("*")
-        .eq("loan_id", id)
-        .order("created_at", { ascending: false }),
-    ]);
+  const [
+    { data: payments },
+    { data: draws },
+    { data: docs },
+    { data: history },
+  ] = await Promise.all([
+    supabase
+      .from("payments")
+      .select("*")
+      .eq("loan_id", id)
+      .order("due_date", { ascending: false }),
+    supabase
+      .from("draws")
+      .select("*, line_items:draw_line_items(description, amount)")
+      .eq("loan_id", id)
+      .order("requested_at", { ascending: false }),
+    supabase
+      .from("loan_documents")
+      .select("*")
+      .eq("loan_id", id)
+      .order("created_at", { ascending: false }),
+    supabase.rpc("loan_history", { loan_id_arg: id }),
+  ]);
 
   const lastInterestPayment = (payments || []).find((p) => p.applied_to_interest > 0);
   const rehabBudget = Number(loan.property?.rehab_budget) || 0;
@@ -286,6 +292,8 @@ export default async function PortalLoanDetail({
           )}
         </CardContent>
       </Card>
+
+      <LoanHistory entries={(history || []) as never} />
     </div>
   );
 }

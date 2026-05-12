@@ -56,10 +56,10 @@ export function ActionCenter({ rows }: ActionCenterProps) {
 
   return (
     <div className="overflow-hidden rounded-3xl border bg-card shadow-[var(--shadow-card)]">
-      <div className="flex min-h-[84px] items-center border-b px-7 py-5">
+      <div className="flex min-h-[78px] items-center border-b px-6 py-4.5">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-[21px] font-semibold tracking-[-0.02em]">This week</div>
+            <div className="text-[19px] font-semibold tracking-[-0.02em]">This week</div>
             <div className="mt-1 text-[13.5px] text-muted-foreground">Servicing queue and operator priorities</div>
           </div>
           <AlertTriangle className="h-4 w-4 text-muted-foreground" />
@@ -73,7 +73,7 @@ export function ActionCenter({ rows }: ActionCenterProps) {
             <li key={item.id}>
               <Link
                 href={item.href}
-                className={`group grid grid-cols-[42px_1fr_auto] items-center gap-4 border-t px-7 py-4.5 first:border-t-0 transition-colors hover:bg-muted/30 ${
+                className={`group grid grid-cols-[42px_1fr_auto] items-center gap-4 border-t px-6 py-4 first:border-t-0 transition-colors hover:bg-muted/30 ${
                   item.tone === "danger" ? "bg-primary/[0.02]" : ""
                 }`}
               >
@@ -110,7 +110,7 @@ export function ActionCenter({ rows }: ActionCenterProps) {
           );
         })}
       </ul>
-      <div className="border-t px-7 py-3.5">
+      <div className="border-t px-6 py-3.5">
         <Link
           href="/admin/servicing"
           className="inline-flex items-center gap-1 text-[13.5px] font-medium text-muted-foreground hover:text-foreground"

@@ -20,15 +20,15 @@ export function DashboardHero({
   scopeToggle,
 }: DashboardHeroProps) {
   return (
-    <div className="rounded-3xl border bg-card px-8 py-8 shadow-[var(--shadow-card)]">
-      <div className="flex flex-wrap items-start justify-between gap-5">
+    <div className="rounded-3xl border bg-card px-7 py-7 shadow-[var(--shadow-card)]">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 max-w-[920px]">
-          <h1 className="text-[50px] font-semibold tracking-[-0.04em] leading-[0.96] text-foreground">
+          <h1 className="text-[40px] font-semibold tracking-[-0.035em] leading-[0.98] text-foreground">
             {title}
           </h1>
-          <p className="mt-3.5 text-[15px] text-muted-foreground">{subtitle}</p>
+          <p className="mt-3 text-[14px] text-muted-foreground">{subtitle}</p>
           {chips && chips.length > 0 && (
-            <div className="mt-6 flex flex-wrap items-center gap-2.5">
+            <div className="mt-5 flex flex-wrap items-center gap-2">
               {chips.map((chip) => (
                 <StatusChip key={chip.label} tone={chip.tone ?? "neutral"}>
                   {chip.label}
@@ -38,13 +38,13 @@ export function DashboardHero({
           )}
         </div>
 
-        <div className="flex items-center gap-2.5 pt-0.5">
+        <div className="flex items-center gap-2 pt-0.5">
           {scopeToggle}
           <Button
             nativeButton={false}
             variant="outline"
             size="default"
-            className="h-11 rounded-xl px-4"
+            className="h-10 rounded-xl px-3.5"
             render={<Link href="/api/reports/loans.csv" target="_blank" />}
           >
             <Download className="h-4 w-4" />
@@ -53,7 +53,7 @@ export function DashboardHero({
           <Button
             nativeButton={false}
             size="default"
-            className="h-11 rounded-xl px-4 font-semibold"
+            className="h-10 rounded-xl px-3.5 font-semibold"
             render={<Link href="/admin/loans/new" />}
           >
             <Plus className="h-4 w-4" />

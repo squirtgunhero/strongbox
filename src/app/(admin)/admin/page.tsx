@@ -846,7 +846,7 @@ export default async function AdminDashboard({
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <DashboardHero
         title={model.title}
         subtitle={model.subtitle}
@@ -854,7 +854,7 @@ export default async function AdminDashboard({
         scopeToggle={scopeControls}
       />
 
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           icon={model.metrics.deployed.icon}
           label="Deployed capital"
@@ -891,7 +891,7 @@ export default async function AdminDashboard({
         />
       </div>
 
-      <div className="grid min-w-0 gap-5 xl:grid-cols-[1.75fr_1fr]">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[1.75fr_1fr]">
         <PipelineBoard
           mode={effectiveMode}
           stages={model.stages}
@@ -911,7 +911,7 @@ export default async function AdminDashboard({
 
       <LifecycleMonitor counts={model.lifecycleCounts} />
 
-      <div className="grid gap-5">
+      <div className="grid gap-4">
         <ActionCenter rows={model.priorityRows} />
       </div>
     </div>

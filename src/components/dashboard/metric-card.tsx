@@ -27,7 +27,7 @@ export function MetricCard({
   emptyRail,
 }: BaseProps) {
   return (
-    <div className="relative flex min-h-[246px] flex-col gap-5 rounded-3xl border bg-card p-7 shadow-[var(--shadow-card)]">
+    <div className="relative flex min-h-[214px] flex-col gap-4 rounded-3xl border bg-card p-6 shadow-[var(--shadow-card)]">
       <div className="flex items-center justify-between">
         <div className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           {label}
@@ -38,8 +38,8 @@ export function MetricCard({
           </div>
         )}
       </div>
-      <div className="flex min-h-[58px] items-baseline gap-2.5">
-        <div className="tabular text-[50px] font-semibold leading-none tracking-[-0.03em] text-foreground">
+      <div className="flex min-h-[52px] items-baseline gap-2">
+        <div className="tabular text-[40px] font-semibold leading-none tracking-[-0.025em] text-foreground">
           {value}
         </div>
         {delta && (
@@ -66,7 +66,7 @@ export function MetricCard({
       </div>
       {spark && spark.length > 0 ? (
         <div className="-mt-0.5 rounded-xl border bg-muted/25 px-3 py-2">
-          <Sparkline data={spark} width={220} height={36} />
+          <Sparkline data={spark} width={200} height={32} />
         </div>
       ) : (
         emptyRail && (

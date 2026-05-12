@@ -54,8 +54,8 @@ export function AdminShell({ profile, children }: AdminShellProps) {
           profile={profile}
           onMenuToggle={() => setIsSidebarOpen((current) => !current)}
         />
-        <main className="flex-1 px-5 pb-20 pt-7 sm:px-8 xl:px-12">
-          <div className="mx-auto w-full max-w-[1640px]">{children}</div>
+        <main className="flex-1 px-5 pb-16 pt-6 sm:px-8 xl:px-10">
+          <div className="mx-auto w-full max-w-[1520px]">{children}</div>
         </main>
       </div>
     </div>

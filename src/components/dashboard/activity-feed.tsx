@@ -33,9 +33,9 @@ interface ActivityFeedProps {
 export function ActivityFeed({ mode, rows }: ActivityFeedProps) {
   return (
     <div className="overflow-hidden rounded-3xl border bg-card shadow-[var(--shadow-card)]">
-      <div className="flex min-h-[84px] items-center justify-between border-b px-7 py-5">
+      <div className="flex min-h-[78px] items-center justify-between border-b px-6 py-4.5">
         <div>
-          <div className="text-[21px] font-semibold tracking-[-0.02em]">Borrower activity</div>
+          <div className="text-[19px] font-semibold tracking-[-0.02em]">Borrower activity</div>
           <div className="mt-1 text-[13.5px] text-muted-foreground">Recent updates and servicing events</div>
         </div>
         <Link
@@ -65,7 +65,7 @@ export function ActivityFeed({ mode, rows }: ActivityFeedProps) {
               <li key={row.id}>
                 <Link
                   href={row.href}
-                  className="grid grid-cols-[32px_1fr_auto] items-center gap-3 px-7 py-4 transition-colors hover:bg-muted/30"
+                  className="grid grid-cols-[32px_1fr_auto] items-center gap-3 px-6 py-3.5 transition-colors hover:bg-muted/30"
                 >
                   <span className="grid h-8 w-8 place-items-center rounded-lg bg-muted text-muted-foreground">
                     <Icon className="h-4 w-4" />

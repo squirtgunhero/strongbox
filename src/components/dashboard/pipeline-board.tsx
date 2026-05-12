@@ -37,9 +37,9 @@ export function PipelineBoard({
 
   return (
     <div className="overflow-hidden rounded-3xl border bg-card shadow-[var(--shadow-card)]">
-      <div className="flex min-h-[84px] items-center justify-between gap-3 border-b px-7 py-5">
+      <div className="flex min-h-[78px] items-center justify-between gap-3 border-b px-6 py-4.5">
         <div>
-          <div className="text-[21px] font-semibold tracking-[-0.02em]">Deal flow</div>
+          <div className="text-[19px] font-semibold tracking-[-0.02em]">Deal flow</div>
           <div className="mt-1 text-[13.5px] text-muted-foreground">
             {totalDeals === 0
               ? "0 deals in flight"
@@ -55,7 +55,7 @@ export function PipelineBoard({
         </Link>
       </div>
 
-      <div className="overflow-x-auto px-5 py-5 sm:px-6 lg:px-7">
+      <div className="overflow-x-auto px-5 py-4.5 sm:px-6">
         <div className="grid min-w-[980px] grid-cols-6 gap-3">
           {stageCols.map((stage) => {
             return (
@@ -63,7 +63,7 @@ export function PipelineBoard({
                 key={stage.id}
                 href={`/admin/loans?status=${stage.id}`}
                 className={cn(
-                  "group block min-w-0 rounded-2xl border bg-background px-4 py-4.5 transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)]",
+                  "group block min-w-0 rounded-2xl border bg-background px-4 py-4 transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)]",
                   stage.attention && "border-primary/35 bg-primary/[0.03]"
                 )}
               >
@@ -78,13 +78,13 @@ export function PipelineBoard({
                     </span>
                   )}
                 </div>
-                <div className="mt-2 text-[15px] font-semibold tracking-[-0.01em]">
+                <div className="mt-2 text-[14px] font-semibold tracking-[-0.01em]">
                   {stage.label}
                 </div>
-                <div className="mt-4 tabular text-[50px] font-semibold leading-none tracking-[-0.035em]">
+                <div className="mt-3.5 tabular text-[38px] font-semibold leading-none tracking-[-0.03em]">
                   {stage.count}
                 </div>
-                <div className="mt-2 tabular text-[15px] font-semibold text-foreground/85">
+                <div className="mt-1.5 tabular text-[13.5px] font-semibold text-foreground/85">
                   {stage.amount ? `$${(stage.amount / 1_000_000).toFixed(1)}M` : "$0.0M"}
                 </div>
               </Link>

@@ -42,10 +42,15 @@ export default async function PortalLayout({
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b">
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link href="/portal" className="flex items-center gap-2">
-            <Landmark className="h-5 w-5" />
-            <span className="font-bold">StrongBox</span>
+        <div className="max-w-[920px] mx-auto px-6 h-14 flex items-center justify-between">
+          <Link href="/portal" className="flex items-center gap-2.5">
+            <span className="h-7 w-7 rounded-md bg-foreground text-background grid place-items-center mono font-semibold text-[13px]">
+              S
+            </span>
+            <span className="font-semibold text-[15px] tracking-tight">StrongBox</span>
+            <span className="text-xs text-muted-foreground ml-1">
+              Borrower portal
+            </span>
           </Link>
           <div className="flex items-center gap-4">
             <PortalNav unreadCount={unread || 0} />
@@ -59,7 +64,7 @@ export default async function PortalLayout({
           </div>
         </div>
       </header>
-      <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-8">
+      <main className="flex-1 max-w-[920px] mx-auto w-full px-6 py-8">
         {children}
       </main>
     </div>

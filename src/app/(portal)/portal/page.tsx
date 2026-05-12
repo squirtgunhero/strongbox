@@ -33,9 +33,9 @@ export default async function PortalDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Your Loans</h1>
-        <p className="text-sm text-muted-foreground">
-          Overview of your active loans and applications.
+        <h1 className="sb-h1">Welcome back</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {loans?.length || 0} loan{(loans?.length || 0) === 1 ? "" : "s"} on file
         </p>
       </div>
 

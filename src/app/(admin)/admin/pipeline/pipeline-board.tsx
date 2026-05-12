@@ -103,7 +103,7 @@ export function PipelineBoard({ initialLoans }: { initialLoans: PipelineLoan[] }
   }
 
   return (
-    <div className="grid grid-cols-5 gap-4 min-w-0">
+    <div className="grid grid-cols-5 gap-3 min-w-0">
       {PIPELINE_STAGES.map((stage) => {
         const stageLoans = byStage[stage] || [];
         const total = stageLoans.reduce(
@@ -125,7 +125,11 @@ export function PipelineBoard({ initialLoans }: { initialLoans: PipelineLoan[] }
         return (
           <div
             key={stage}
-            className="flex flex-col gap-3 min-w-0"
+            className={`flex flex-col gap-2 min-w-0 min-h-[320px] rounded-xl p-2.5 transition-colors ${
+              isHovered
+                ? "bg-primary/5 outline outline-1 outline-dashed outline-primary"
+                : "bg-muted"
+            }`}
             onDragOver={(e) => {
               if (isValidDropTarget) {
                 e.preventDefault();
@@ -137,29 +141,21 @@ export function PipelineBoard({ initialLoans }: { initialLoans: PipelineLoan[] }
             }}
             onDrop={() => handleDrop(stage)}
           >
-            <div className="flex items-baseline justify-between">
-              <h3 className="text-sm font-semibold">
-                {LOAN_STATUS_LABELS[stage]}
-              </h3>
-              <span className="text-xs text-muted-foreground">
-                {stageLoans.length}
+            <div className="flex items-center justify-between px-1.5 pt-1">
+              <div className="flex items-center gap-1.5">
+                <span className="sb-h6">{LOAN_STATUS_LABELS[stage]}</span>
+                <span className="mono text-[11px] text-muted-foreground bg-background px-1.5 py-px rounded-full border">
+                  {stageLoans.length}
+                </span>
+              </div>
+              <span className="mono text-[11px] text-muted-foreground">
+                {total ? `$${(total / 1_000_000).toFixed(1)}M` : "—"}
               </span>
             </div>
-            <p className="text-xs text-muted-foreground -mt-2">
-              {formatCurrency(total)}
-            </p>
-            <div
-              className={`flex flex-col gap-2 min-h-[80px] rounded-md transition-colors ${
-                isHovered
-                  ? "ring-2 ring-primary/40 bg-primary/5"
-                  : isValidDropTarget
-                    ? "ring-1 ring-dashed ring-muted-foreground/40"
-                    : ""
-              }`}
-            >
+            <div className="flex flex-col gap-2">
               {stageLoans.length === 0 ? (
-                <div className="rounded-md border border-dashed py-8 text-center text-xs text-muted-foreground">
-                  Empty
+                <div className="rounded-md border border-dashed bg-background py-5 text-center text-xs text-muted-foreground">
+                  Drop here
                 </div>
               ) : (
                 stageLoans.map((loan) => {
@@ -169,14 +165,18 @@ export function PipelineBoard({ initialLoans }: { initialLoans: PipelineLoan[] }
                   const borrowerName = primary?.borrower
                     ? borrowerDisplayName(primary.borrower)
                     : "Unknown";
-                  const address = loan.property
-                    ? `${loan.property.address_street}, ${loan.property.address_city}`
+                  const propAddress = loan.property
+                    ? `${loan.property.address_street}`
                     : "No property";
+                  const propLocation = loan.property
+                    ? `${loan.property.address_city}, ${loan.property.address_city ? "" : ""}`
+                    : "";
                   const daysInStage = Math.floor(
                     (Date.now() - new Date(loan.updated_at).getTime()) /
                       (1000 * 60 * 60 * 24)
                   );
                   const isDragging = draggingId === loan.id;
+                  const shortId = loan.id.slice(0, 8).toUpperCase();
 
                   return (
                     <div
@@ -187,36 +187,45 @@ export function PipelineBoard({ initialLoans }: { initialLoans: PipelineLoan[] }
                         setDraggingId(null);
                         setHoverStage(null);
                       }}
-                      className={`${isDragging ? "opacity-50" : ""}`}
+                      className={`${isDragging ? "opacity-40" : ""}`}
                     >
-                      <Card className="p-3 hover:bg-muted/50 transition-colors cursor-grab active:cursor-grabbing space-y-1.5">
+                      <Card className="p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow gap-2">
                         <Link
                           href={`/admin/loans/${loan.id}`}
-                          className="block"
+                          className="block space-y-2"
                           draggable={false}
                           onClick={(e) => {
-                            // Prevent navigation while dragging
                             if (draggingId) e.preventDefault();
                           }}
                         >
-                          <div className="text-sm font-medium truncate">
-                            {address}
+                          <div className="flex justify-between items-center">
+                            <span className="mono text-[10.5px] text-muted-foreground">
+                              {shortId}
+                            </span>
+                            <span className="mono text-[10.5px] text-muted-foreground">
+                              {daysInStage}d
+                            </span>
                           </div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {borrowerName}
+                          <div className="text-[13px] font-medium leading-tight">
+                            {propAddress}
+                            {loan.property && (
+                              <div className="text-xs text-muted-foreground font-normal">
+                                {loan.property.address_city}
+                              </div>
+                            )}
                           </div>
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-medium">
+                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                            <span>{borrowerName}</span>
+                          </div>
+                          <div className="flex items-center justify-between pt-0.5">
+                            <span className="mono text-[13px] font-medium">
                               {formatCurrency(loan.loan_amount)}
                             </span>
-                            <span className="text-muted-foreground">
-                              {formatRate(loan.interest_rate)}
-                            </span>
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            {daysInStage === 0
-                              ? "today"
-                              : `${daysInStage}d in stage`}
+                          {/* Hide legacy fields below */}
+                          <div className="hidden">
+                            {propLocation}
+                            {formatRate(loan.interest_rate)}
                           </div>
                         </Link>
                       </Card>

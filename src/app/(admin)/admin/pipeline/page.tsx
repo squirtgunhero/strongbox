@@ -26,9 +26,9 @@ export default async function PipelinePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Pipeline</h1>
-        <p className="text-sm text-muted-foreground">
-          Drag loans across columns to update status.
+        <h1 className="sb-h1">Pipeline</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {(loans || []).length} deals · drag to move between stages
         </p>
       </div>
       <PipelineBoard initialLoans={(loans || []) as never} />

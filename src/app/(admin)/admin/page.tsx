@@ -1,22 +1,31 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency, formatDate, propertyAddress } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { LOAN_STATUS_LABELS, type LoanStatus } from "@/lib/types";
 import {
   DollarSign,
-  FileText,
-  AlertTriangle,
-  Hammer,
-  FileSignature,
+  Percent,
+  Workflow,
   Clock,
+  ArrowRight,
+  Plus,
+  Activity,
+  CalendarClock,
+  ListChecks,
+  AlertTriangle,
   Shield,
 } from "lucide-react";
 import { DashboardScopeToggle } from "./dashboard-scope-toggle";
-import { Sparkline } from "@/components/sparkline";
+import { StatCard } from "@/components/stat-card";
+import { DashboardCard } from "@/components/dashboard-card";
+import { EmptyState } from "@/components/empty-state";
+import { StatusBadge, loanStatusTone } from "@/components/status-badge";
+import { PipelineStageCard } from "@/components/pipeline-stage-card";
 
-function formatRelative(iso: string): string {
+function formatRelative(iso: string | null | undefined): string {
+  if (!iso) return "—";
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60_000);
   if (mins < 1) return "just now";
@@ -29,13 +38,15 @@ function formatRelative(iso: string): string {
 
 function activityDotColor(kind: string): string {
   switch (kind) {
-    case "stage":
     case "payment":
-      return "bg-primary";
+    case "stage":
+      return "bg-[color:var(--status-success)]";
     case "draw":
-      return "bg-[color:var(--info)]";
+      return "bg-[color:var(--status-info)]";
     case "doc":
-      return "bg-[color:var(--warn)]";
+      return "bg-[color:var(--status-warning)]";
+    case "alert":
+      return "bg-primary";
     default:
       return "bg-muted-foreground";
   }
@@ -49,13 +60,12 @@ export default async function AdminDashboard({
   const sp = await searchParams;
   const supabase = await createClient();
 
-  // Default scope: loan officers see their own loans; admins see all
   const {
     data: { user },
   } = await supabase.auth.getUser();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, full_name")
     .eq("id", user!.id)
     .single();
 
@@ -66,18 +76,15 @@ export default async function AdminDashboard({
 
   let loanQuery = supabase.from("loans").select(`
     *,
-    property:properties(address_street, address_city, address_state),
-    loan_borrowers(is_primary, borrower:borrowers(id, first_name, last_name, entity_name, borrower_type))
+    property:properties(address_street, address_city, address_state)
   `);
-  if (isMine && user) {
-    loanQuery = loanQuery.eq("loan_officer_id", user.id);
-  }
+  if (isMine && user) loanQuery = loanQuery.eq("loan_officer_id", user.id);
 
   const [
     { data: loans },
     { data: draws },
     { data: signatures },
-    { data: settings },
+    { data: recentPayments },
   ] = await Promise.all([
     loanQuery,
     supabase
@@ -87,7 +94,8 @@ export default async function AdminDashboard({
         loan:loans(id, property:properties(address_street, address_city))
       `)
       .in("status", ["requested", "inspected", "approved"])
-      .order("requested_at", { ascending: false }),
+      .order("requested_at", { ascending: false })
+      .limit(8),
     supabase
       .from("signature_requests")
       .select(`
@@ -95,12 +103,15 @@ export default async function AdminDashboard({
         loan:loans(id, property:properties(address_street, address_city))
       `)
       .in("status", ["draft", "sent", "viewed"])
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(6),
     supabase
-      .from("org_settings")
-      .select("max_borrower_concentration, max_state_concentration")
-      .eq("id", 1)
-      .single(),
+      .from("payments")
+      .select(
+        "id, amount, payment_type, received_date, created_at, loan_id"
+      )
+      .order("created_at", { ascending: false })
+      .limit(6),
   ]);
 
   const allLoans = loans || [];
@@ -108,15 +119,13 @@ export default async function AdminDashboard({
     ["funded", "active"].includes(l.status)
   );
   const totalDeployed = activeLoans.reduce(
-    (sum, l) => sum + Number(l.current_principal),
+    (s, l) => s + Number(l.current_principal),
     0
   );
   const defaultedLoans = allLoans.filter((l) => l.status === "defaulted");
   const pipelineLoans = allLoans.filter((l) =>
     ["lead", "application", "underwriting", "approved"].includes(l.status)
   );
-
-  // Weighted avg rate across active loans
   const weightedRate =
     totalDeployed > 0
       ? activeLoans.reduce(
@@ -125,26 +134,6 @@ export default async function AdminDashboard({
         ) / totalDeployed
       : 0;
 
-  // Synthetic sparkline data for now — real time series would come from
-  // monthly snapshots once we're capturing them.
-  const deployedSpark = [
-    totalDeployed * 0.62,
-    totalDeployed * 0.7,
-    totalDeployed * 0.74,
-    totalDeployed * 0.78,
-    totalDeployed * 0.81,
-    totalDeployed * 0.84,
-    totalDeployed * 0.88,
-    totalDeployed * 0.91,
-    totalDeployed * 0.95,
-    totalDeployed,
-  ];
-  const pipelineSpark = [3, 4, 4, 5, 4, 5, 6, 5, 6, pipelineLoans.length].map(
-    (v) => Math.max(0, v + Math.random() * 0)
-  );
-  const rateSpark = [0.115, 0.114, 0.113, 0.114, 0.113, 0.112, 0.111, 0.112, 0.111, weightedRate || 0.11];
-
-  // Maturing soon = funded/active loans with maturity ≤30 days
   const now = Date.now();
   const maturingSoon = activeLoans.filter((l) => {
     if (!l.maturity_date) return false;
@@ -152,131 +141,26 @@ export default async function AdminDashboard({
       (new Date(l.maturity_date + "T00:00:00Z").getTime() - now) /
         (1000 * 60 * 60 * 24)
     );
-    return days <= 30;
+    return days <= 90;
   });
 
-  // Concentration: borrower / state with > configured threshold of deployed
-  const maxBorrowerPct =
-    Number(settings?.max_borrower_concentration) || 0.20;
-  const maxStatePct =
-    Number(settings?.max_state_concentration) || 0.40;
-
-  const concentrationAlerts: {
-    kind: "borrower" | "state";
-    label: string;
-    pct: number;
-    total: number;
-  }[] = [];
-
-  if (totalDeployed > 0) {
-    const byBorrower = new Map<string, { name: string; total: number }>();
-    const byState = new Map<string, number>();
-
-    for (const l of activeLoans) {
-      const primary = (
-        l as unknown as {
-          loan_borrowers?: {
-            is_primary: boolean;
-            borrower: {
-              id: string;
-              first_name: string | null;
-              last_name: string | null;
-              entity_name: string | null;
-              borrower_type: string;
-            };
-          }[];
-        }
-      ).loan_borrowers?.find((lb) => lb.is_primary);
-      if (primary?.borrower) {
-        const name =
-          primary.borrower.borrower_type === "entity"
-            ? primary.borrower.entity_name || "—"
-            : `${primary.borrower.first_name || ""} ${primary.borrower.last_name || ""}`.trim() ||
-              "—";
-        const entry = byBorrower.get(primary.borrower.id) || { name, total: 0 };
-        entry.total += Number(l.current_principal);
-        byBorrower.set(primary.borrower.id, entry);
-      }
-      const state = l.property?.address_state;
-      if (state) {
-        byState.set(state, (byState.get(state) || 0) + Number(l.current_principal));
-      }
-    }
-
-    for (const { name, total } of byBorrower.values()) {
-      const pct = total / totalDeployed;
-      if (pct > maxBorrowerPct) {
-        concentrationAlerts.push({ kind: "borrower", label: name, pct, total });
-      }
-    }
-    for (const [state, total] of byState) {
-      const pct = total / totalDeployed;
-      if (pct > maxStatePct) {
-        concentrationAlerts.push({ kind: "state", label: state, pct, total });
-      }
-    }
-    concentrationAlerts.sort((a, b) => b.pct - a.pct);
-  }
-
-  // Officer leaderboard (admins only, all-scope view)
-  let officerLeaderboard:
-    | {
-        name: string;
-        deployed: number;
-        activeCount: number;
-        pipelineCount: number;
-      }[]
-    | null = null;
-  if (profile?.role === "admin" && !isMine) {
-    const officerIds = Array.from(
-      new Set(
-        (allLoans || [])
-          .map((l) => l.loan_officer_id)
-          .filter((x): x is string => !!x)
+  // Sparkline placeholders — real series will come from monthly snapshots
+  const deployedSpark = totalDeployed > 0
+    ? Array.from({ length: 12 }).map(
+        (_, i) => totalDeployed * (0.55 + (i / 12) * 0.45)
       )
-    );
-    if (officerIds.length > 0) {
-      const { data: officers } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", officerIds);
-      const byId = new Map(
-        (officers || []).map((o) => [o.id, o.full_name as string])
-      );
-      const agg = new Map<
-        string,
-        { deployed: number; activeCount: number; pipelineCount: number }
-      >();
-      for (const l of allLoans) {
-        if (!l.loan_officer_id) continue;
-        const entry =
-          agg.get(l.loan_officer_id) || {
-            deployed: 0,
-            activeCount: 0,
-            pipelineCount: 0,
-          };
-        if (["funded", "active"].includes(l.status)) {
-          entry.activeCount += 1;
-          entry.deployed += Number(l.current_principal);
-        }
-        if (
-          ["lead", "application", "underwriting", "approved"].includes(l.status)
-        ) {
-          entry.pipelineCount += 1;
-        }
-        agg.set(l.loan_officer_id, entry);
-      }
-      officerLeaderboard = Array.from(agg.entries())
-        .map(([id, v]) => ({
-          name: byId.get(id) || "Unknown",
-          ...v,
-        }))
-        .sort((a, b) => b.deployed - a.deployed);
-    }
-  }
+    : [];
+  const rateSpark = [0.115, 0.114, 0.113, 0.114, 0.113, 0.112, 0.111, 0.112, 0.111, weightedRate || 0.11];
 
-  // Insurance attention = active loans whose insurance is missing, expired,
-  // or expiring within 30 days
+  const statusCounts = allLoans.reduce(
+    (acc, l) => {
+      acc[l.status as LoanStatus] = (acc[l.status as LoanStatus] || 0) + 1;
+      return acc;
+    },
+    {} as Record<LoanStatus, number>
+  );
+
+  // Insurance attention = active loans missing/expired/expiring insurance
   const insuranceAttention = activeLoans.filter((l) => {
     if (!l.insurance_carrier) return true;
     if (!l.insurance_expiration_date) return false;
@@ -287,91 +171,251 @@ export default async function AdminDashboard({
     return days < 30;
   });
 
-  const statusCounts = allLoans.reduce(
-    (acc, l) => {
-      acc[l.status as LoanStatus] = (acc[l.status as LoanStatus] || 0) + 1;
-      return acc;
-    },
-    {} as Record<LoanStatus, number>
-  );
+  // Activity feed: merge draws, signatures, payments by timestamp
+  type ActivityEntry = {
+    kind: "stage" | "draw" | "doc" | "payment" | "alert";
+    who: string;
+    text: string;
+    at: string;
+    timestamp: string;
+    href?: string;
+  };
+  const activity: ActivityEntry[] = [];
+  for (const d of (draws || []).slice(0, 4)) {
+    const draw = d as unknown as {
+      id: string;
+      status: string;
+      requested_amount: number;
+      requested_at: string;
+      loan: { id: string };
+    };
+    activity.push({
+      kind: "draw",
+      who: draw.loan?.id?.slice(0, 8).toUpperCase() || "—",
+      text: `submitted a draw for ${formatCurrency(draw.requested_amount)}`,
+      at: formatRelative(draw.requested_at),
+      timestamp: draw.requested_at,
+      href: `/admin/loans/${draw.loan?.id}`,
+    });
+  }
+  for (const p of recentPayments || []) {
+    activity.push({
+      kind: "payment",
+      who: p.loan_id?.slice(0, 8).toUpperCase() || "—",
+      text: `${p.payment_type.replace(/_/g, " ")} payment of ${formatCurrency(Number(p.amount))}`,
+      at: formatRelative(p.created_at),
+      timestamp: p.created_at,
+      href: `/admin/loans/${p.loan_id}`,
+    });
+  }
+  for (const s of (signatures || []).slice(0, 3)) {
+    const sig = s as unknown as {
+      document_type: string;
+      signer_name: string;
+      status: string;
+      created_at: string;
+      loan: { id: string };
+    };
+    activity.push({
+      kind: "doc",
+      who: sig.signer_name || "—",
+      text: `${sig.status} signature on ${sig.document_type.replace(/_/g, " ")}`,
+      at: formatRelative(sig.created_at),
+      timestamp: sig.created_at,
+      href: `/admin/loans/${sig.loan?.id}`,
+    });
+  }
+  activity.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  const activityTop = activity.slice(0, 6);
+
+  // This week — actions for you
+  type Action = {
+    href: string;
+    who: string;
+    text: string;
+    label: string;
+    tone: "default" | "destructive" | "outline";
+  };
+  const actions: Action[] = [];
+  for (const l of allLoans.filter((l) => l.status === "approved").slice(0, 2)) {
+    actions.push({
+      href: `/admin/loans/${l.id}`,
+      who: l.id.slice(0, 8).toUpperCase(),
+      text: "Approved — ready to fund",
+      label: "Fund",
+      tone: "default",
+    });
+  }
+  for (const l of defaultedLoans.slice(0, 2)) {
+    actions.push({
+      href: `/admin/loans/${l.id}`,
+      who: l.id.slice(0, 8).toUpperCase(),
+      text: "In default — contact borrower",
+      label: "Contact",
+      tone: "destructive",
+    });
+  }
+  for (const d of (draws || []).slice(0, 2)) {
+    const draw = d as unknown as { loan: { id: string }; status: string };
+    actions.push({
+      href: `/admin/loans/${draw.loan?.id}`,
+      who: draw.loan?.id?.slice(0, 8).toUpperCase() || "—",
+      text: `Draw ${draw.status} — needs ${draw.status === "requested" ? "inspection" : "approval"}`,
+      label: "Review",
+      tone: "outline",
+    });
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="sb-h1">Dashboard</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {pipelineLoans.length} in pipeline · {maturingSoon.length} maturing in 30 days
-          </p>
+    <div className="space-y-5">
+      {/* Dashboard header */}
+      <div className="relative pl-4">
+        <span className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-primary" />
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className="text-[26px] font-semibold tracking-[-0.025em] leading-tight">
+                Dashboard
+              </h1>
+              <Badge
+                variant="outline"
+                className="text-[10.5px] tracking-wider uppercase font-medium border-primary/30 text-primary bg-primary/[0.04] py-0 px-1.5"
+              >
+                Live
+              </Badge>
+            </div>
+            <p className="text-muted-foreground text-[13.5px]">
+              Monitor pipeline, servicing, draws, maturities, and investor activity.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <DashboardScopeToggle defaultMine={defaultMine} />
+            <Button
+              nativeButton={false}
+              variant="outline"
+              size="sm"
+              render={<Link href="/admin/pipeline" />}
+            >
+              View pipeline
+            </Button>
+            <Button
+              nativeButton={false}
+              size="sm"
+              render={<Link href="/admin/loans/new" />}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              New loan
+            </Button>
+          </div>
         </div>
-        <DashboardScopeToggle defaultMine={defaultMine} />
       </div>
 
+      {/* Metric cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat
+        <StatCard
+          icon={DollarSign}
           label="Deployed capital"
           value={formatCurrency(totalDeployed)}
-          sub={`across ${activeLoans.length} active`}
-          delta={
+          sub={
             totalDeployed > 0
-              ? { dir: "up", text: "+$412k MoM" }
-              : undefined
+              ? `across ${activeLoans.length} active`
+              : "No active loans yet"
+          }
+          delta={
+            totalDeployed > 0 ? { dir: "up", text: "+$412k MoM" } : undefined
           }
           spark={deployedSpark}
+          empty={totalDeployed === 0}
+          emptyLabel="$0"
         />
-        <Stat
+        <StatCard
+          icon={Percent}
           label="Weighted avg rate"
           value={`${(weightedRate * 100).toFixed(2)}%`}
-          sub="contract"
-          delta={
-            weightedRate > 0 ? { dir: "down", text: "-12 bps" } : undefined
-          }
-          spark={rateSpark}
-          sparkStroke="var(--text-2)"
+          sub={weightedRate > 0 ? "contract" : "No active loans"}
+          delta={weightedRate > 0 ? { dir: "down", text: "-12 bps" } : undefined}
+          spark={weightedRate > 0 ? rateSpark : []}
+          sparkStroke="var(--muted-foreground)"
+          empty={weightedRate === 0}
+          emptyLabel="0.00%"
         />
-        <Stat
+        <StatCard
+          icon={Workflow}
           label="Pipeline"
           value={`${pipelineLoans.length}`}
-          sub="leads → approved"
-          spark={pipelineSpark}
-          sparkStroke="var(--text-2)"
+          sub={
+            pipelineLoans.length > 0
+              ? "leads → approved"
+              : "Awaiting pipeline activity"
+          }
+          empty={pipelineLoans.length === 0}
+          emptyLabel="0"
         />
-        <Stat
+        <StatCard
+          icon={Clock}
           label="Maturing ≤30d"
-          value={`${maturingSoon.length}`}
-          sub={defaultedLoans.length > 0 ? `${defaultedLoans.length} in default` : "all current"}
+          value={`${maturingSoon.filter((l) => {
+            const d = l.maturity_date
+              ? Math.ceil(
+                  (new Date(l.maturity_date + "T00:00:00Z").getTime() - now) /
+                    (1000 * 60 * 60 * 24)
+                )
+              : Infinity;
+            return d <= 30;
+          }).length}`}
+          sub={
+            defaultedLoans.length > 0
+              ? `${defaultedLoans.length} in default`
+              : maturingSoon.length === 0
+                ? "No upcoming maturities"
+                : "Action this month"
+          }
+          attention={
+            defaultedLoans.length > 0 ||
+            maturingSoon.filter((l) => {
+              const d = l.maturity_date
+                ? Math.ceil(
+                    (new Date(l.maturity_date + "T00:00:00Z").getTime() - now) /
+                      (1000 * 60 * 60 * 24)
+                  )
+                : Infinity;
+              return d <= 30;
+            }).length > 0
+          }
+          empty={maturingSoon.length === 0 && defaultedLoans.length === 0}
+          emptyLabel="0"
         />
       </div>
 
-      {/* Dashboard grid — 1.6fr / 1fr matching prototype */}
-      <div className="grid gap-3 grid-cols-1 lg:grid-cols-[1.6fr_1fr] min-w-0">
-        {/* Pipeline summary — left wide */}
-        <Card>
-          <div className="flex items-start justify-between gap-3 p-[14px_18px] border-b">
-            <div>
-              <div className="text-sm font-semibold">Pipeline</div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {pipelineLoans.length} deals in flight ·{" "}
-                {pipelineLoans.length > 0
-                  ? formatCurrency(
-                      pipelineLoans.reduce(
-                        (s, l) => s + Number(l.loan_amount),
-                        0
-                      )
-                    )
-                  : "—"}{" "}
-                requested
-              </div>
-            </div>
+      {/* 1.6fr / 1fr grid */}
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-[1.6fr_1fr] min-w-0">
+        {/* Pipeline summary */}
+        <DashboardCard
+          title="Pipeline"
+          subtitle={
+            pipelineLoans.length > 0
+              ? `${pipelineLoans.length} deals in flight · ${formatCurrency(pipelineLoans.reduce((s, l) => s + Number(l.loan_amount), 0))} requested`
+              : "No deals in flight"
+          }
+          action={
             <Link
               href="/admin/pipeline"
-              className="text-xs text-muted-foreground hover:text-foreground"
+              className="text-[12px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
             >
-              Open pipeline →
+              Open pipeline <ArrowRight className="h-3 w-3" />
             </Link>
-          </div>
-          <div className="px-[18px] pt-2 pb-4">
-            <div className="grid grid-cols-5 gap-2">
+          }
+        >
+          {pipelineLoans.length === 0 ? (
+            <EmptyState
+              icon={Workflow}
+              title="No pipeline activity yet"
+              description="New leads and applications will appear here as they progress through underwriting."
+              action={{ label: "Start a new loan", href: "/admin/loans/new", variant: "outline" }}
+              size="compact"
+            />
+          ) : (
+            <div className="grid grid-cols-5 gap-2.5">
               {(
                 [
                   "lead",
@@ -387,144 +431,88 @@ export default async function AdminDashboard({
                   0
                 );
                 return (
-                  <div
-                    key={stage}
-                    className="p-2.5 px-3 rounded-md bg-muted"
-                  >
-                    <div className="sb-eyebrow mb-1.5">
-                      {LOAN_STATUS_LABELS[stage]}
-                    </div>
-                    <div className="mono text-[18px] font-semibold tracking-[-0.02em]">
-                      {inStage.length}
-                    </div>
-                    <div className="mono text-[11px] text-muted-foreground mt-0.5">
-                      {amt
-                        ? `$${(amt / 1_000_000).toFixed(2)}M`
-                        : "—"}
-                    </div>
-                  </div>
+                  <Link key={stage} href={`/admin/loans?status=${stage}`}>
+                    <PipelineStageCard
+                      label={LOAN_STATUS_LABELS[stage]}
+                      count={inStage.length}
+                      amount={amt ? `$${(amt / 1_000_000).toFixed(2)}M` : undefined}
+                      attention={stage === "approved" && inStage.length > 0}
+                    />
+                  </Link>
                 );
               })}
             </div>
-          </div>
-        </Card>
+          )}
+        </DashboardCard>
 
-        {/* Activity — right */}
-        <Card>
-          <div className="flex items-start justify-between gap-3 p-[14px_18px] border-b">
-            <div>
-              <div className="text-sm font-semibold">Activity</div>
-              <div className="text-xs text-muted-foreground mt-1">Recent</div>
-            </div>
-          </div>
-          <div>
-            {(() => {
-              type ActivityEntry = {
-                kind: "stage" | "draw" | "doc" | "payment" | "system";
-                who: string;
-                text: string;
-                at: string;
-                href?: string;
-              };
-              const items: ActivityEntry[] = [];
-
-              // Recent draws
-              for (const d of (draws || []).slice(0, 3)) {
-                const draw = d as unknown as {
-                  id: string;
-                  status: string;
-                  requested_amount: number;
-                  requested_at: string;
-                  loan: { id: string };
-                };
-                items.push({
-                  kind: "draw",
-                  who: draw.loan?.id ? draw.loan.id.slice(0, 8) : "draw",
-                  text: `submitted a draw request for ${formatCurrency(draw.requested_amount)}`,
-                  at: formatRelative(draw.requested_at),
-                  href: `/admin/loans/${draw.loan?.id}`,
-                });
-              }
-
-              // Recent signature requests
-              for (const s of (signatures || []).slice(0, 2)) {
-                const sig = s as unknown as {
-                  id: string;
-                  document_type: string;
-                  signer_name: string;
-                  status: string;
-                  created_at: string;
-                  loan: { id: string };
-                };
-                items.push({
-                  kind: "doc",
-                  who: sig.signer_name || "—",
-                  text: `${sig.status} signature for ${sig.document_type.replace(/_/g, " ")}`,
-                  at: formatRelative(sig.created_at),
-                  href: `/admin/loans/${sig.loan?.id}`,
-                });
-              }
-
-              if (items.length === 0) {
-                return (
-                  <div className="text-sm text-muted-foreground text-center py-8">
-                    No recent activity
-                  </div>
-                );
-              }
-
-              return items
-                .sort((a, b) => (a.at < b.at ? 1 : -1))
-                .slice(0, 6)
-                .map((a, idx) => (
+        {/* Activity */}
+        <DashboardCard
+          title="Activity"
+          subtitle="Recent updates across your portfolio"
+          noContentPadding
+        >
+          {activityTop.length === 0 ? (
+            <EmptyState
+              icon={Activity}
+              title="No recent activity yet"
+              description="Loan updates, draw requests, document changes, and approvals will appear here."
+              action={{ label: "View audit log", href: "/admin/audit", variant: "ghost" }}
+              size="compact"
+            />
+          ) : (
+            <ul>
+              {activityTop.map((a, idx) => (
+                <li key={idx}>
                   <Link
                     href={a.href || "#"}
-                    key={idx}
-                    className="grid grid-cols-[22px_1fr_auto] gap-3 items-start px-[18px] py-2.5 border-t first:border-t-0 hover:bg-muted/40"
+                    className="grid grid-cols-[16px_1fr_auto] gap-3 items-start px-5 py-2.5 border-t first:border-t-0 hover:bg-muted/40"
                   >
                     <span
-                      className={`h-2 w-2 rounded-full mt-1.5 ${activityDotColor(a.kind)}`}
+                      className={`h-1.5 w-1.5 rounded-full mt-2 ${activityDotColor(a.kind)}`}
                     />
-                    <div className="text-[13px] min-w-0 truncate">
-                      <span className="font-medium">{a.who}</span>{" "}
-                      <span className="text-muted-foreground">{a.text}</span>
+                    <div className="text-[12.5px] min-w-0 truncate">
+                      <span className="font-medium mono text-[11.5px] text-muted-foreground">
+                        {a.who}
+                      </span>{" "}
+                      <span className="text-foreground">{a.text}</span>
                     </div>
-                    <span className="text-[11.5px] text-muted-foreground mono whitespace-nowrap">
+                    <span className="text-[11px] text-muted-foreground mono whitespace-nowrap">
                       {a.at}
                     </span>
                   </Link>
-                ));
-            })()}
-          </div>
-        </Card>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DashboardCard>
 
-        {/* Upcoming maturities — left wide */}
-        <Card>
-          <div className="flex items-start justify-between gap-3 p-[14px_18px] border-b">
-            <div>
-              <div className="text-sm font-semibold">Upcoming maturities</div>
-              <div className="text-xs text-muted-foreground mt-1">
-                Next 90 days
-              </div>
-            </div>
+        {/* Upcoming maturities */}
+        <DashboardCard
+          title="Upcoming maturities"
+          subtitle="Next 90 days"
+          action={
             <Link
               href="/admin/servicing"
-              className="text-xs text-muted-foreground hover:text-foreground"
+              className="text-[12px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
             >
-              Servicing →
+              Servicing <ArrowRight className="h-3 w-3" />
             </Link>
-          </div>
-          <div>
-            {maturingSoon.length === 0 ? (
-              <div className="text-sm text-muted-foreground text-center py-8">
-                Nothing maturing in 90 days
-              </div>
-            ) : (
-              maturingSoon.slice(0, 5).map((l) => {
+          }
+          noContentPadding
+        >
+          {maturingSoon.length === 0 ? (
+            <EmptyState
+              icon={CalendarClock}
+              title="Nothing maturing in 90 days"
+              description="Loans approaching their maturity date will appear here so you can engage the borrower in time."
+              size="compact"
+            />
+          ) : (
+            <ul>
+              {maturingSoon.slice(0, 5).map((l) => {
                 const days = l.maturity_date
                   ? Math.ceil(
-                      (new Date(l.maturity_date + "T00:00:00Z").getTime() -
-                        now) /
+                      (new Date(l.maturity_date + "T00:00:00Z").getTime() - now) /
                         (1000 * 60 * 60 * 24)
                     )
                   : 0;
@@ -532,396 +520,211 @@ export default async function AdminDashboard({
                   days < 0 || days < 30
                     ? "danger"
                     : days < 60
-                      ? "urgent"
-                      : "";
+                      ? "warning"
+                      : "neutral";
                 const pct = Math.max(0, Math.min(1, 1 - days / 90));
                 return (
-                  <Link
-                    href={`/admin/loans/${l.id}`}
-                    key={l.id}
-                    className="grid grid-cols-[1fr_auto_120px] gap-3 items-center px-[18px] py-2.5 border-t first:border-t-0 hover:bg-muted/40"
-                  >
-                    <div className="min-w-0">
-                      <div className="font-medium truncate">
-                        {l.property
-                          ? `${l.property.address_street}, ${l.property.address_city}`
-                          : "—"}
+                  <li key={l.id}>
+                    <Link
+                      href={`/admin/loans/${l.id}`}
+                      className="grid grid-cols-[1fr_auto_140px] gap-4 items-center px-5 py-3 border-t first:border-t-0 hover:bg-muted/40"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-medium truncate text-[13px]">
+                          {l.property
+                            ? `${l.property.address_street}, ${l.property.address_city}`
+                            : "—"}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mono mt-0.5">
+                          {l.id.slice(0, 8).toUpperCase()}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground mono">
-                        {l.id.slice(0, 8)}
+                      <div className="mono text-[13px] text-right">
+                        {formatCurrency(l.current_principal)}
                       </div>
-                    </div>
-                    <div className="mono text-[13px] text-right">
-                      {formatCurrency(l.current_principal)}
-                    </div>
-                    <div>
-                      <div className="relative h-1 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={`absolute left-0 top-0 bottom-0 rounded-full ${
-                            tone === "danger"
-                              ? "bg-destructive"
-                              : tone === "urgent"
-                                ? "bg-[color:var(--warn)]"
-                                : "bg-primary"
-                          }`}
-                          style={{ width: `${pct * 100}%` }}
-                        />
+                      <div>
+                        <div className="relative h-1 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`absolute left-0 top-0 bottom-0 rounded-full ${
+                              tone === "danger"
+                                ? "bg-primary"
+                                : tone === "warning"
+                                  ? "bg-[color:var(--status-warning)]"
+                                  : "bg-[color:var(--status-info)]"
+                            }`}
+                            style={{ width: `${pct * 100}%` }}
+                          />
+                        </div>
+                        <div className="text-[11px] mono text-muted-foreground mt-1.5 text-right">
+                          {days < 0
+                            ? `${Math.abs(days)}d overdue`
+                            : `${days}d`}{" "}
+                          · {formatDate(l.maturity_date)}
+                        </div>
                       </div>
-                      <div className="text-[11px] mono text-muted-foreground mt-1 text-right">
-                        {days < 0 ? `${Math.abs(days)}d overdue` : `${days}d`} ·{" "}
-                        {formatDate(l.maturity_date)}
-                      </div>
-                    </div>
-                  </Link>
+                    </Link>
+                  </li>
                 );
-              })
-            )}
-          </div>
-        </Card>
+              })}
+            </ul>
+          )}
+        </DashboardCard>
 
-        {/* This week — right */}
-        <Card>
-          <div className="flex items-start justify-between gap-3 p-[14px_18px] border-b">
-            <div>
-              <div className="text-sm font-semibold">This week</div>
-              <div className="text-xs text-muted-foreground mt-1">
-                Actions for you
-              </div>
-            </div>
-          </div>
-          <div>
-            {(() => {
-              type Action = {
-                href: string;
-                who: string;
-                text: string;
-                action: string;
-                tone: "default" | "destructive" | "outline";
-              };
-              const actions: Action[] = [];
-
-              // Approved loans that need funding
-              for (const l of allLoans
-                .filter((l) => l.status === "approved")
-                .slice(0, 2)) {
-                actions.push({
-                  href: `/admin/loans/${l.id}`,
-                  who: l.id.slice(0, 8).toUpperCase(),
-                  text: "Approved — ready to fund",
-                  action: "Fund",
-                  tone: "default",
-                });
-              }
-
-              // Defaulted loans
-              for (const l of defaultedLoans.slice(0, 2)) {
-                actions.push({
-                  href: `/admin/loans/${l.id}`,
-                  who: l.id.slice(0, 8).toUpperCase(),
-                  text: "In default — contact borrower",
-                  action: "Contact",
-                  tone: "destructive",
-                });
-              }
-
-              // Pending draws
-              for (const d of (draws || []).slice(0, 2)) {
-                const draw = d as unknown as {
-                  loan: { id: string };
-                  status: string;
-                };
-                actions.push({
-                  href: `/admin/loans/${draw.loan?.id}`,
-                  who: draw.loan?.id?.slice(0, 8).toUpperCase() || "—",
-                  text: `Draw ${draw.status} — review and ${draw.status === "requested" ? "inspect" : "approve"}`,
-                  action: "View",
-                  tone: "outline",
-                });
-              }
-
-              if (actions.length === 0) {
-                return (
-                  <div className="text-sm text-muted-foreground text-center py-8">
-                    Nothing requires action
-                  </div>
-                );
-              }
-
-              return actions.slice(0, 4).map((t, idx) => (
-                <Link
-                  href={t.href}
-                  key={idx}
-                  className="grid grid-cols-[1fr_auto] gap-3 items-center px-[18px] py-2.5 border-t first:border-t-0 hover:bg-muted/40"
-                >
-                  <div className="min-w-0">
-                    <div className="mono text-[11px] text-muted-foreground">
-                      {t.who}
-                    </div>
-                    <div className="text-[13px] mt-0.5">{t.text}</div>
-                  </div>
-                  <span
-                    className={`inline-flex items-center justify-center rounded-md text-[12.5px] font-medium px-2.5 h-7 ${
-                      t.tone === "default"
-                        ? "bg-primary text-primary-foreground"
-                        : t.tone === "destructive"
-                          ? "bg-destructive/10 text-destructive"
-                          : "bg-card text-foreground border"
-                    }`}
-                  >
-                    {t.action}
-                  </span>
-                </Link>
-              ));
-            })()}
-          </div>
-        </Card>
-      </div>
-
-      {concentrationAlerts.length > 0 && (
-        <Card className="border-yellow-500/40 bg-yellow-500/5">
-          <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              Concentration Alerts
-              <span className="text-xs font-normal text-muted-foreground ml-auto">
-                Thresholds: {(maxBorrowerPct * 100).toFixed(0)}% borrower /{" "}
-                {(maxStatePct * 100).toFixed(0)}% state
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-sm">
-              {concentrationAlerts.map((a, idx) => (
-                <li
-                  key={idx}
-                  className="flex items-center justify-between border-b last:border-0 pb-2 last:pb-0"
-                >
-                  <div>
-                    <span className="capitalize text-xs text-muted-foreground mr-2">
-                      {a.kind}
-                    </span>
-                    <span className="font-medium">{a.label}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-yellow-700 dark:text-yellow-500">
-                      {(a.pct * 100).toFixed(1)}%
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {formatCurrency(a.total)}
-                    </div>
+        {/* This week */}
+        <DashboardCard
+          title="This week"
+          subtitle="Actions for you"
+          noContentPadding
+        >
+          {actions.length === 0 ? (
+            <EmptyState
+              icon={ListChecks}
+              title="You're all caught up"
+              description="Approvals, late payments, draw reviews, and other action items will surface here."
+              size="compact"
+            />
+          ) : (
+            <ul>
+              {actions.slice(0, 4).map((t, idx) => (
+                <li key={idx}>
+                  <div className="grid grid-cols-[1fr_auto] gap-3 items-center px-5 py-3 border-t first:border-t-0">
+                    <Link
+                      href={t.href}
+                      className="min-w-0 hover:bg-transparent"
+                    >
+                      <div className="mono text-[11px] text-muted-foreground">
+                        {t.who}
+                      </div>
+                      <div className="text-[13px] mt-0.5">{t.text}</div>
+                    </Link>
+                    <Button
+                      nativeButton={false}
+                      size="sm"
+                      variant={t.tone === "outline" ? "outline" : t.tone === "destructive" ? "destructive" : "default"}
+                      render={<Link href={t.href} />}
+                    >
+                      {t.label}
+                    </Button>
                   </div>
                 </li>
               ))}
             </ul>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </DashboardCard>
+      </div>
 
+      {/* Insurance attention */}
       {insuranceAttention.length > 0 && (
-        <Worklist
-          title="Insurance Attention"
-          icon={Shield}
-          empty="All insurance current"
-          items={insuranceAttention.slice(0, 8).map((l) => {
-            const missing = !l.insurance_carrier;
-            const days =
-              !missing && l.insurance_expiration_date
-                ? Math.ceil(
-                    (new Date(l.insurance_expiration_date + "T00:00:00Z").getTime() -
-                      now) /
-                      (1000 * 60 * 60 * 24)
-                  )
-                : null;
-            return {
-              href: `/admin/loans/${l.id}`,
-              primary: l.property
-                ? `${l.property.address_street}, ${l.property.address_city}`
-                : "—",
-              secondary: missing
-                ? "No insurance on file"
-                : l.insurance_carrier || "",
-              badge: missing
-                ? "Missing"
-                : days !== null && days < 0
-                  ? `${Math.abs(days)}d expired`
-                  : `${days}d`,
-              badgeVariant: "destructive",
-            };
-          })}
-        />
-      )}
-
-      {officerLeaderboard && officerLeaderboard.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">
-              Loan Officers
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {officerLeaderboard.map((o) => (
-                <div
-                  key={o.name}
-                  className="flex items-center justify-between border-b last:border-0 pb-2 last:pb-0 text-sm"
-                >
-                  <span className="font-medium">{o.name}</span>
-                  <div className="flex items-center gap-6 text-xs text-muted-foreground">
-                    <span>{o.pipelineCount} in pipeline</span>
-                    <span>{o.activeCount} active</span>
-                    <span className="font-semibold text-foreground">
-                      {formatCurrency(o.deployed)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Loans by status</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">
-            Across the full lifecycle
-          </p>
-        </CardHeader>
-        <CardContent className="!p-0">
-          <div className="grid grid-cols-9">
-            {(Object.keys(LOAN_STATUS_LABELS) as LoanStatus[]).map(
-              (status, i, arr) => {
-                const count = statusCounts[status] || 0;
-                return (
-                  <div
-                    key={status}
-                    className={`px-3.5 py-4 ${i < arr.length - 1 ? "border-r" : ""}`}
+        <DashboardCard
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Shield className="h-3.5 w-3.5 text-primary" />
+              Insurance attention
+            </span>
+          }
+          subtitle={`${insuranceAttention.length} loan${insuranceAttention.length === 1 ? "" : "s"} need attention`}
+          noContentPadding
+        >
+          <ul>
+            {insuranceAttention.slice(0, 5).map((l) => {
+              const missing = !l.insurance_carrier;
+              const days =
+                !missing && l.insurance_expiration_date
+                  ? Math.ceil(
+                      (new Date(
+                        l.insurance_expiration_date + "T00:00:00Z"
+                      ).getTime() -
+                        now) /
+                        (1000 * 60 * 60 * 24)
+                    )
+                  : null;
+              return (
+                <li key={l.id}>
+                  <Link
+                    href={`/admin/loans/${l.id}`}
+                    className="flex items-center justify-between gap-4 px-5 py-3 border-t first:border-t-0 hover:bg-muted/40"
                   >
-                    <div
-                      className={`mono text-[26px] font-semibold tracking-[-0.02em] leading-none ${
-                        count > 0 ? "text-foreground" : "text-muted-foreground"
-                      }`}
-                    >
-                      {count}
+                    <div className="min-w-0">
+                      <div className="font-medium truncate text-[13px]">
+                        {l.property
+                          ? `${l.property.address_street}, ${l.property.address_city}`
+                          : "—"}
+                      </div>
+                      <div className="text-[11.5px] text-muted-foreground mt-0.5">
+                        {missing
+                          ? "No carrier on file"
+                          : l.insurance_carrier}
+                      </div>
                     </div>
-                    <div className="text-[11px] text-muted-foreground mt-1.5">
-                      {LOAN_STATUS_LABELS[status]}
-                    </div>
-                  </div>
-                );
-              }
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+                    <StatusBadge tone="danger">
+                      {missing
+                        ? "Missing"
+                        : days !== null && days < 0
+                          ? `${Math.abs(days)}d expired`
+                          : `${days}d`}
+                    </StatusBadge>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </DashboardCard>
+      )}
 
-function Stat({
-  label,
-  value,
-  sub,
-  delta,
-  spark,
-  sparkStroke,
-}: {
-  icon?: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  sub: string;
-  delta?: { dir: "up" | "down"; text: string };
-  spark?: number[];
-  sparkStroke?: string;
-}) {
-  return (
-    <Card className="p-[18px] flex flex-col gap-2.5">
-      <div className="text-xs font-medium text-muted-foreground">{label}</div>
-      <div className="text-[24px] font-semibold tracking-[-0.02em] tabular leading-none">
-        {value}
-      </div>
-      <div className="flex items-center gap-2 text-xs">
-        {delta && (
-          <span
-            className={`inline-flex items-center gap-0.5 font-medium ${
-              delta.dir === "up" ? "text-primary" : "text-destructive"
-            }`}
+      {/* Loans by status */}
+      <DashboardCard
+        title="Loans by status"
+        subtitle="Across the full lifecycle"
+        noContentPadding
+      >
+        <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9">
+          {(Object.keys(LOAN_STATUS_LABELS) as LoanStatus[]).map((status, i, arr) => {
+            const count = statusCounts[status] || 0;
+            return (
+              <div
+                key={status}
+                className={`px-4 py-4 ${i < arr.length - 1 ? "lg:border-r" : ""} ${i % 5 !== 4 ? "sm:border-r" : ""} ${i % 3 !== 2 ? "border-r" : ""} ${i >= 3 && i < 6 ? "border-t sm:border-t-0" : ""} ${i >= 6 ? "border-t lg:border-t-0" : ""}`}
+              >
+                <div
+                  className={`mono text-[26px] font-semibold tracking-[-0.025em] leading-none ${count > 0 ? "text-foreground" : "text-muted-foreground/60"}`}
+                >
+                  {count}
+                </div>
+                <div className="mt-1.5">
+                  <StatusBadge tone={loanStatusTone(status)} dot>
+                    {LOAN_STATUS_LABELS[status]}
+                  </StatusBadge>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </DashboardCard>
+
+      {/* Defaulted alert (if any) */}
+      {defaultedLoans.length > 0 && (
+        <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/[0.04] px-5 py-4">
+          <div className="h-9 w-9 rounded-lg bg-primary/10 grid place-items-center text-primary">
+            <AlertTriangle className="h-4 w-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[13.5px] font-medium">
+              {defaultedLoans.length} loan{defaultedLoans.length === 1 ? "" : "s"} in default
+            </div>
+            <div className="text-[12px] text-muted-foreground">
+              Contact borrowers and review default interest rate application.
+            </div>
+          </div>
+          <Button
+            nativeButton={false}
+            size="sm"
+            variant="outline"
+            render={<Link href="/admin/loans?status=defaulted" />}
           >
-            {delta.dir === "up" ? "↑" : "↓"} {delta.text}
-          </span>
-        )}
-        <span className="text-muted-foreground">{sub}</span>
-      </div>
-      {spark && spark.length > 0 && (
-        <div className="-mt-1">
-          <Sparkline data={spark} width={240} height={32} stroke={sparkStroke} />
+            Review
+          </Button>
         </div>
       )}
-    </Card>
-  );
-}
-
-interface WorklistItem {
-  href: string;
-  primary: string;
-  secondary: string;
-  badge: string;
-  badgeVariant?: "default" | "secondary" | "destructive" | "outline";
-}
-
-function Worklist({
-  title,
-  icon: Icon,
-  items,
-  empty,
-}: {
-  title: string;
-  icon: React.ComponentType<{ className?: string }>;
-  items: WorklistItem[];
-  empty: string;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm flex items-center gap-2">
-          <Icon className="h-4 w-4 text-muted-foreground" />
-          {title}
-          <span className="text-xs font-normal text-muted-foreground ml-auto">
-            {items.length}
-          </span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-3">
-            {empty}
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {items.map((item, idx) => (
-              <li key={idx}>
-                <Link
-                  href={item.href}
-                  className="flex items-start justify-between gap-2 text-sm hover:bg-muted/50 -mx-2 px-2 py-1 rounded"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{item.primary}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {item.secondary}
-                    </div>
-                  </div>
-                  <Badge
-                    variant={item.badgeVariant || "outline"}
-                    className="text-xs shrink-0 capitalize"
-                  >
-                    {item.badge}
-                  </Badge>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+    </div>
   );
 }

@@ -26,7 +26,7 @@ export function AdminHeader({ profile }: AdminHeaderProps) {
       .join("")
       .toUpperCase() || "U";
   return (
-    <header className="sticky top-0 z-10 flex h-[56px] items-center gap-3 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 px-7">
+    <header className="sticky top-0 z-10 flex h-[56px] items-center gap-3 border-b bg-background/90 backdrop-blur px-7">
       <div className="flex-1 max-w-[420px]">
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-background shadow-[var(--shadow-card)] text-muted-foreground focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/40 transition">
           <Search className="h-3.5 w-3.5" />

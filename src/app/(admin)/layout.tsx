@@ -32,7 +32,7 @@ export default async function AdminLayout({
       <AdminSidebar profile={profile} />
       <div className="flex flex-1 flex-col min-w-0">
         <AdminHeader profile={profile} />
-        <main className="flex-1 px-7 pt-6 pb-16 max-w-[1280px] w-full mx-auto">
+        <main className="flex-1 px-7 pt-5 pb-16 max-w-[1320px] w-full">
           {children}
         </main>
       </div>

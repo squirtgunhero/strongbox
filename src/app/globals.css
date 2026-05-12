@@ -48,28 +48,36 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* StrongBox — modern lending OS palette.
-   Off-white bg, strong red primary (Strong Investor Loans red, #D71920),
-   crisp white cards with soft shadow, near-black text. */
+/* StrongBox — Lending OS palette.
+   Warm gray app shell, white panels, strong Strong-red primary,
+   charcoal headers and metric cards.
+   Brand: #E30613 red, #0A0A0A black, #F7F5F2 warm bg, #E5E1DA borders. */
 :root {
-  --background: oklch(0.985 0.002 60);          /* warm off-white */
-  --foreground: oklch(0.16 0 0);                /* near black */
+  --background: #F7F5F2;                        /* warm gray app shell */
+  --foreground: #0A0A0A;                        /* near black */
   --card: #ffffff;
-  --card-foreground: oklch(0.16 0 0);
+  --card-foreground: #0A0A0A;
   --popover: #ffffff;
-  --popover-foreground: oklch(0.16 0 0);
-  --primary: oklch(0.55 0.22 25);               /* #D71920 strong red */
+  --popover-foreground: #0A0A0A;
+  --primary: oklch(0.56 0.23 26);               /* #E30613 strong red */
   --primary-foreground: #ffffff;
-  --secondary: oklch(0.96 0.003 60);
-  --secondary-foreground: oklch(0.16 0 0);
-  --muted: oklch(0.96 0.003 60);
-  --muted-foreground: oklch(0.48 0 0);
-  --accent: oklch(0.96 0.005 25);
-  --accent-foreground: oklch(0.55 0.22 25);
-  --destructive: oklch(0.55 0.22 25);
-  --border: oklch(0.91 0.003 60);
-  --input: oklch(0.91 0.003 60);
-  --ring: oklch(0.55 0.22 25);
+  --secondary: #EFECE7;
+  --secondary-foreground: #0A0A0A;
+  --muted: #EFECE7;
+  --muted-foreground: #6B6862;
+  --accent: oklch(0.96 0.02 25);
+  --accent-foreground: oklch(0.56 0.23 26);
+  --destructive: oklch(0.56 0.23 26);
+  --border: #E5E1DA;
+  --input: #E5E1DA;
+  --ring: oklch(0.56 0.23 26);
+
+  /* Charcoal surface for dark header/metric cards */
+  --charcoal: #111111;
+  --charcoal-2: #181818;
+  --charcoal-fg: oklch(0.97 0 0);
+  --charcoal-fg-2: oklch(0.75 0 0);
+  --charcoal-border: oklch(0.22 0 0);
 
   /* Status colors */
   --status-success: oklch(0.55 0.13 150);       /* funded/healthy green */
@@ -205,3 +213,19 @@
   color: var(--muted-foreground);
 }
 .tabular { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* Subtle dotted texture for dark hero panels */
+.sb-noise {
+  background-image: radial-gradient(rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+/* Faint red radial glow for hero accent */
+.sb-glow {
+  background:
+    radial-gradient(800px circle at 100% 0%, oklch(0.56 0.23 26 / 0.18), transparent 50%),
+    radial-gradient(600px circle at 0% 100%, oklch(0.56 0.23 26 / 0.08), transparent 55%);
+}
+
+/* Disable system serifs anywhere a tailwind preset might leak through */
+.no-serif, .no-serif * { font-family: var(--font-sans), system-ui, sans-serif; }

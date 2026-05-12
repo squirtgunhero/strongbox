@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Landmark } from "lucide-react";
 import { PortalNav } from "@/components/portal-nav";
 import { signOut } from "@/app/(auth)/login/actions";
 import { Button } from "@/components/ui/button";
@@ -40,31 +39,31 @@ export default async function PortalLayout({
     .is("read_at", null);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="no-serif flex min-h-screen flex-col">
       <header className="border-b">
-        <div className="max-w-[920px] mx-auto px-6 h-14 flex items-center justify-between">
+        <div className="mx-auto flex h-16 max-w-[1180px] items-center justify-between px-6">
           <Link href="/portal" className="flex items-center gap-2.5">
-            <span className="h-7 w-7 rounded-md bg-foreground text-background grid place-items-center mono font-semibold text-[13px]">
+            <span className="mono grid h-8 w-8 place-items-center rounded-md bg-foreground text-[13px] font-semibold text-background">
               S
             </span>
-            <span className="font-semibold text-[15px] tracking-tight">StrongBox</span>
-            <span className="text-xs text-muted-foreground ml-1">
+            <span className="text-[15px] font-semibold tracking-tight">StrongBox</span>
+            <span className="ml-1 text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground">
               Borrower portal
             </span>
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <PortalNav unreadCount={unread || 0} />
             <ThemeToggle />
             <form action={signOut}>
               <Button type="submit" variant="ghost" size="sm">
-                <LogOut className="mr-2 h-3 w-3" />
+                <LogOut className="mr-2 h-4 w-4" />
                 Sign out
               </Button>
             </form>
           </div>
         </div>
       </header>
-      <main className="flex-1 max-w-[920px] mx-auto w-full px-6 py-8">
+      <main className="mx-auto w-full max-w-[1180px] flex-1 px-6 py-9">
         {children}
       </main>
     </div>

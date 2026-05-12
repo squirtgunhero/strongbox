@@ -43,15 +43,15 @@ export default async function PortalDocuments() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Documents</h1>
+      <h1 className="text-[21px] font-semibold tracking-[-0.02em]">Documents</h1>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">All Documents</CardTitle>
+      <Card className="rounded-3xl shadow-[var(--shadow-card)]">
+        <CardHeader className="px-6 py-5">
+          <CardTitle className="text-[13.5px]">All Documents</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-6 pb-6">
           {!docs?.length ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
+            <p className="py-4 text-[13.5px] text-center text-muted-foreground">
               No documents available yet.
             </p>
           ) : (

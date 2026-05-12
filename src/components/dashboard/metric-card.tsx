@@ -29,7 +29,7 @@ export function MetricCard({
   return (
     <div className="relative flex min-h-[246px] flex-col gap-5 rounded-3xl border bg-card p-7 shadow-[var(--shadow-card)]">
       <div className="flex items-center justify-between">
-        <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        <div className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           {label}
         </div>
         {Icon && (
@@ -39,13 +39,13 @@ export function MetricCard({
         )}
       </div>
       <div className="flex min-h-[58px] items-baseline gap-2.5">
-        <div className="tabular text-[48px] font-semibold leading-none tracking-[-0.03em] text-foreground">
+        <div className="tabular text-[50px] font-semibold leading-none tracking-[-0.03em] text-foreground">
           {value}
         </div>
         {delta && (
           <span
             className={cn(
-              "inline-flex items-center gap-0.5 text-[13px] font-semibold tracking-tight",
+              "inline-flex items-center gap-0.5 text-[13.5px] font-semibold tracking-tight",
               delta.dir === "up" && "text-[color:var(--status-success)]",
               delta.dir === "down" && "text-primary",
               delta.dir === "flat" && "text-muted-foreground"
@@ -59,7 +59,7 @@ export function MetricCard({
       <div className="mt-auto flex min-h-[30px] items-center justify-between gap-3">
         {status && <StatusPill tone={status.tone}>{status.label}</StatusPill>}
         {sub && (
-          <div className="truncate text-[13px] text-muted-foreground">
+          <div className="truncate text-[13.5px] text-muted-foreground">
             {sub}
           </div>
         )}
@@ -185,7 +185,7 @@ function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.05em]",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-[0.08em]",
         toneStyles
       )}
     >

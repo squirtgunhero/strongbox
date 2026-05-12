@@ -26,7 +26,7 @@ export function DashboardHero({
           <h1 className="text-[50px] font-semibold tracking-[-0.04em] leading-[0.96] text-foreground">
             {title}
           </h1>
-          <p className="mt-3.5 text-[16px] text-muted-foreground">{subtitle}</p>
+          <p className="mt-3.5 text-[15px] text-muted-foreground">{subtitle}</p>
           {chips && chips.length > 0 && (
             <div className="mt-6 flex flex-wrap items-center gap-2.5">
               {chips.map((chip) => (

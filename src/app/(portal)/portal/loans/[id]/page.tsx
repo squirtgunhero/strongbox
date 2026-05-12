@@ -19,7 +19,7 @@ import { ChevronLeft } from "lucide-react";
 import { remainingHoldback } from "@/lib/calculations/holdback";
 import { DrawRequest } from "./draw-request";
 import { Button } from "@/components/ui/button";
-import { Receipt, Mail, Download } from "lucide-react";
+import { Receipt, Mail } from "lucide-react";
 import { DocumentUpload } from "./document-upload";
 import { DownloadButton } from "@/app/(portal)/portal/documents/download-button";
 import { InsuranceCard } from "./insurance-card";
@@ -94,7 +94,7 @@ export default async function PortalLoanDetail({
     <div className="space-y-6">
       <Link
         href="/portal"
-        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        className="inline-flex items-center text-[13.5px] text-muted-foreground hover:text-foreground"
       >
         <ChevronLeft className="h-4 w-4 mr-1" />
         Back to loans
@@ -102,7 +102,7 @@ export default async function PortalLoanDetail({
 
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold">
+          <h1 className="text-[21px] font-semibold tracking-[-0.02em]">
             {loan.property ? propertyAddress(loan.property) : "Loan"}
           </h1>
           <Badge variant="outline" className="mt-2">
@@ -117,7 +117,7 @@ export default async function PortalLoanDetail({
               size="sm"
               render={<Link href={`/documents/${loan.id}/payoff-letter`} target="_blank" />}
             >
-              <Receipt className="mr-2 h-3 w-3" />
+              <Receipt className="mr-2 h-4 w-4" />
               Payoff Letter
             </Button>
             <Button
@@ -126,7 +126,7 @@ export default async function PortalLoanDetail({
               size="sm"
               render={<Link href={`/documents/${loan.id}/statement`} target="_blank" />}
             >
-              <Mail className="mr-2 h-3 w-3" />
+              <Mail className="mr-2 h-4 w-4" />
               Statement
             </Button>
           </div>
@@ -134,11 +134,11 @@ export default async function PortalLoanDetail({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="rounded-3xl shadow-[var(--shadow-card)]">
           <CardHeader>
-            <CardTitle className="text-sm">Loan Terms</CardTitle>
+            <CardTitle className="text-[13.5px]">Loan Terms</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm">
+          <CardContent className="space-y-3 text-[13.5px]">
             <Row label="Original Amount" value={formatCurrency(loan.loan_amount)} />
             <Row label="Current Balance" value={formatCurrency(loan.current_principal)} bold />
             <Row label="Interest Rate" value={formatRate(loan.interest_rate)} />
@@ -173,11 +173,11 @@ export default async function PortalLoanDetail({
       />
 
       {rehabBudget > 0 && (
-        <Card>
+        <Card className="rounded-3xl shadow-[var(--shadow-card)]">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-sm">Draws</CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">
+              <CardTitle className="text-[13.5px]">Draws</CardTitle>
+              <p className="mt-1 text-[10.5px] text-muted-foreground">
                 {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(holdbackLeft)} available of{" "}
                 {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(rehabBudget)}
               </p>
@@ -188,7 +188,7 @@ export default async function PortalLoanDetail({
           </CardHeader>
           <CardContent>
             {!draws?.length ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
+              <p className="py-4 text-[13.5px] text-center text-muted-foreground">
                 No draws requested yet.
               </p>
             ) : (
@@ -221,14 +221,14 @@ export default async function PortalLoanDetail({
         </Card>
       )}
 
-      <Card>
+      <Card className="rounded-3xl shadow-[var(--shadow-card)]">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm">Documents</CardTitle>
+          <CardTitle className="text-[13.5px]">Documents</CardTitle>
           <DocumentUpload loanId={loan.id} />
         </CardHeader>
         <CardContent>
           {!docs?.length ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
+            <p className="py-4 text-[13.5px] text-center text-muted-foreground">
               No documents on this loan yet.
             </p>
           ) : (
@@ -261,9 +261,9 @@ export default async function PortalLoanDetail({
       </Card>
 
       {(propertyDocs || []).length > 0 && (
-        <Card>
+        <Card className="rounded-3xl shadow-[var(--shadow-card)]">
           <CardHeader>
-            <CardTitle className="text-sm">Property Documents</CardTitle>
+            <CardTitle className="text-[13.5px]">Property Documents</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -302,16 +302,16 @@ export default async function PortalLoanDetail({
         </Card>
       )}
 
-      <Card>
+      <Card className="rounded-3xl shadow-[var(--shadow-card)]">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm">Payment History</CardTitle>
+          <CardTitle className="text-[13.5px]">Payment History</CardTitle>
           {["funded", "active", "defaulted"].includes(loan.status) && (
             <PaymentIntentDialog loanId={loan.id} />
           )}
         </CardHeader>
         <CardContent>
           {!payments?.length ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
+            <p className="py-4 text-[13.5px] text-center text-muted-foreground">
               No payments recorded yet.
             </p>
           ) : (

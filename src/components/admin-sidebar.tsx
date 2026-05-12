@@ -41,7 +41,7 @@ export function AdminSidebar({ profile, isOpen, onClose }: AdminSidebarProps) {
           <span className="mono text-[17px] font-bold text-white">S</span>
         </div>
         <div className="leading-tight">
-          <div className="text-[17px] font-semibold tracking-tight text-white">
+          <div className="text-[15px] font-semibold tracking-tight text-white">
             StrongBox
           </div>
           <div className="text-[10.5px] font-medium uppercase tracking-[0.1em] text-white/45">
@@ -79,7 +79,7 @@ export function AdminSidebar({ profile, isOpen, onClose }: AdminSidebarProps) {
                     <Link
                       href={item.href}
                       onClick={onClose}
-                      className={`group relative flex items-center gap-3 rounded-xl py-2.5 pl-4 pr-3 text-[14px] font-medium transition-colors ${
+                      className={`group relative flex items-center gap-3 rounded-xl py-2.5 pl-4 pr-3 text-[13.5px] font-medium transition-colors ${
                         isActive
                           ? "bg-white/[0.09] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]"
                           : "text-white/68 hover:bg-white/[0.05] hover:text-white"
@@ -110,7 +110,7 @@ export function AdminSidebar({ profile, isOpen, onClose }: AdminSidebarProps) {
             <div className="truncate text-[13.5px] font-medium text-white">
               {profile.full_name}
             </div>
-            <div className="truncate text-[11px] capitalize text-white/52">
+            <div className="truncate text-[10.5px] capitalize text-white/52">
               {profile.role.replace(/_/g, " ")}
             </div>
           </div>

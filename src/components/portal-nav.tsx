@@ -26,7 +26,7 @@ export function PortalNav({ unreadCount = 0 }: { unreadCount?: number }) {
             key={l.href}
             href={l.href}
             className={cn(
-              "text-sm px-3 py-1.5 rounded-md transition-colors inline-flex items-center gap-1.5",
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13.5px] transition-colors",
               isActive
                 ? "bg-muted text-foreground font-medium"
                 : "text-muted-foreground hover:text-foreground"
@@ -34,7 +34,7 @@ export function PortalNav({ unreadCount = 0 }: { unreadCount?: number }) {
           >
             {l.label}
             {showBadge && (
-              <span className="bg-primary text-primary-foreground text-[10px] rounded-full px-1.5 py-0.5 min-w-[18px] text-center font-medium">
+              <span className="min-w-[18px] rounded-full bg-primary px-1.5 py-0.5 text-center text-[10.5px] font-medium text-primary-foreground">
                 {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}

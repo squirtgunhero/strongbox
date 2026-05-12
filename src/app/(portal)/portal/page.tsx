@@ -102,12 +102,12 @@ export default async function PortalDashboard() {
     rehabBudget > 0 ? Math.min(100, (fundedDrawAmount / rehabBudget) * 100) : 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-[42px] font-semibold tracking-[-0.03em] leading-[1.05] text-foreground">
+        <h1 className="text-[50px] font-semibold tracking-[-0.04em] leading-[0.96] text-foreground">
           Welcome back, {firstName}
         </h1>
-        <p className="mt-1 text-[13px] text-muted-foreground">
+        <p className="mt-2 text-[13.5px] text-muted-foreground">
           {(loans || []).length} active loan{(loans || []).length === 1 ? "" : "s"}
           {daysToNextPayment !== null ? ` · next payment in ${Math.max(daysToNextPayment, 0)} days` : ""}
         </p>
@@ -119,17 +119,17 @@ export default async function PortalDashboard() {
         </div>
       ) : (
         <>
-          <div className="grid gap-3 rounded-2xl border bg-card p-4 shadow-[var(--shadow-card)] md:grid-cols-[1.4fr_1fr]">
+          <div className="grid gap-3 rounded-3xl border bg-card p-5 shadow-[var(--shadow-card)] md:grid-cols-[1.4fr_1fr]">
             <div>
               <div className="mb-2 flex items-center gap-2">
                 <Badge variant="outline" className="bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]">
                   Current
                 </Badge>
               </div>
-              <h2 className="text-[34px] font-semibold tracking-[-0.03em] leading-[1.05]">
+              <h2 className="text-[36px] font-semibold tracking-[-0.03em] leading-[1.02]">
                 {loanAddress(primaryLoan)}
               </h2>
-              <div className="mt-1 text-[11px] text-muted-foreground">
+              <div className="mt-1 text-[10.5px] text-muted-foreground">
                 {primaryLoan.property?.address_zip || "—"} · {primaryLoan.id.slice(0, 8).toUpperCase()}
               </div>
 
@@ -140,13 +140,13 @@ export default async function PortalDashboard() {
               </div>
             </div>
             <div className="rounded-xl border bg-[repeating-linear-gradient(-45deg,transparent,transparent_10px,rgba(0,0,0,0.015)_10px,rgba(0,0,0,0.015)_20px)] p-4">
-              <div className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+              <div className="text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground">
                 Loan status
               </div>
-              <div className="mt-2 text-[14px] font-medium">
+              <div className="mt-2 text-[13.5px] font-medium">
                 {LOAN_STATUS_LABELS[primaryLoan.status as LoanStatus] || primaryLoan.status}
               </div>
-              <div className="mt-4 text-[11px] text-muted-foreground">
+              <div className="mt-4 text-[13.5px] text-muted-foreground">
                 View full details, statements, payoff request, and servicing updates.
               </div>
               <Button
@@ -157,18 +157,18 @@ export default async function PortalDashboard() {
                 render={<Link href={`/portal/loans/${primaryLoan.id}`} />}
               >
                 Open loan
-                <ArrowRight className="h-3 w-3" />
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-card px-4 py-3 shadow-[var(--shadow-card)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border bg-card px-5 py-4 shadow-[var(--shadow-card)]">
             <div>
-              <div className="text-[11px] text-muted-foreground">Next payment due</div>
+              <div className="text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground">Next payment due</div>
               <div className="tabular text-[42px] font-semibold tracking-[-0.03em] leading-none">
                 {nextPayment ? formatCurrency(nextPayment.amount) : "—"}
               </div>
-              <div className="text-[11px] text-muted-foreground">
+              <div className="text-[13.5px] text-muted-foreground">
                 {nextPayment ? `${formatDate(nextPayment.due_date)} · interest-only` : "No scheduled payment"}
               </div>
             </div>
@@ -219,15 +219,15 @@ export default async function PortalDashboard() {
           </div>
 
           {rehabBudget > 0 && (
-            <div className="rounded-2xl border bg-card p-4 shadow-[var(--shadow-card)]">
+            <div className="rounded-3xl border bg-card p-5 shadow-[var(--shadow-card)]">
               <div className="flex items-end justify-between gap-3">
                 <div>
-                  <div className="text-[13px] font-semibold">Rehab progress</div>
-                  <div className="text-[11px] text-muted-foreground">
+                  <div className="text-[15px] font-semibold">Rehab progress</div>
+                  <div className="text-[13.5px] text-muted-foreground">
                     Draw {draws?.length || 0} inspection scheduled
                   </div>
                 </div>
-                <div className="text-[12px] font-medium">
+                <div className="text-[13.5px] font-medium">
                   {formatCurrency(fundedDrawAmount)} / {formatCurrency(rehabBudget)}
                 </div>
               </div>
@@ -238,7 +238,7 @@ export default async function PortalDashboard() {
                 {(draws || []).slice(-4).map((draw, index) => (
                   <div key={draw.id} className="rounded-xl border bg-background px-3 py-2.5">
                     <div className="text-[10.5px] text-muted-foreground">Draw #{index + 1}</div>
-                    <div className="tabular text-[20px] font-semibold leading-none mt-1">
+                    <div className="tabular mt-1 text-[21px] font-semibold leading-none">
                       {formatCurrency(Number(draw.approved_amount ?? draw.requested_amount ?? 0))}
                     </div>
                     <div className="mt-1 inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] capitalize text-muted-foreground">
@@ -256,12 +256,12 @@ export default async function PortalDashboard() {
           )}
 
           <div className="grid gap-3 lg:grid-cols-[1.2fr_1fr]">
-            <div className="overflow-hidden rounded-2xl border bg-card shadow-[var(--shadow-card)]">
-              <div className="border-b px-4 py-3">
-                <div className="text-[13px] font-semibold tracking-tight">Recent payments</div>
+            <div className="overflow-hidden rounded-3xl border bg-card shadow-[var(--shadow-card)]">
+              <div className="border-b px-5 py-4">
+                <div className="text-[15px] font-semibold tracking-tight">Recent payments</div>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-[12px]">
+                <table className="w-full text-left text-[13.5px]">
                   <thead className="bg-muted/40 text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground">
                     <tr>
                       <th className="px-4 py-2 font-medium">Date</th>
@@ -289,15 +289,15 @@ export default async function PortalDashboard() {
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border bg-card shadow-[var(--shadow-card)]">
-              <div className="border-b px-4 py-3">
-                <div className="text-[13px] font-semibold tracking-tight">Your documents</div>
+            <div className="overflow-hidden rounded-3xl border bg-card shadow-[var(--shadow-card)]">
+              <div className="border-b px-5 py-4">
+                <div className="text-[15px] font-semibold tracking-tight">Your documents</div>
               </div>
               <ul className="divide-y">
                 {(documents || []).slice(0, 4).map((doc) => (
                   <li key={doc.id} className="flex items-center gap-2 px-4 py-2.5">
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[12px] font-medium">{doc.filename}</div>
+                      <div className="truncate text-[13.5px] font-medium">{doc.filename}</div>
                       <div className="text-[10.5px] text-muted-foreground">{formatDate(doc.created_at)}</div>
                     </div>
                     <DownloadButton storagePath={doc.storage_path} />
@@ -334,11 +334,11 @@ function QuickAction({
       className="rounded-xl border bg-card px-4 py-3 shadow-[var(--shadow-card)] transition-colors hover:bg-muted/30"
     >
       <div className="flex items-start gap-2">
-        <div className="grid h-6 w-6 place-items-center rounded-md bg-muted text-muted-foreground">
-          <Icon className="h-3.5 w-3.5" />
+        <div className="grid h-7 w-7 place-items-center rounded-md bg-muted text-muted-foreground">
+          <Icon className="h-4 w-4" />
         </div>
         <div className="min-w-0">
-          <div className="text-[12px] font-semibold">{title}</div>
+          <div className="text-[13.5px] font-semibold">{title}</div>
           <div className="text-[10.5px] text-muted-foreground">{subtitle}</div>
         </div>
       </div>
@@ -358,7 +358,7 @@ function Stat({
       <div className="text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground">
         {label}
       </div>
-      <div className="tabular text-[28px] font-semibold tracking-[-0.025em] leading-none">
+      <div className="tabular text-[30px] font-semibold tracking-[-0.025em] leading-none">
         {value}
       </div>
     </div>

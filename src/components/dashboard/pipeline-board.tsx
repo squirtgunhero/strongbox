@@ -22,7 +22,7 @@ export function PipelineBoard({ stages, totalRequested }: PipelineBoardProps) {
       <div className="flex min-h-[84px] items-center justify-between gap-3 border-b px-7 py-5">
         <div>
           <div className="text-[21px] font-semibold tracking-[-0.02em]">Deal flow</div>
-          <div className="mt-1 text-[13px] text-muted-foreground">
+          <div className="mt-1 text-[13.5px] text-muted-foreground">
             {totalDeals === 0
               ? "0 deals in flight"
               : `${totalDeals} deals in flight · $${(totalRequested / 1_000_000).toFixed(2)}M requested`}
@@ -30,7 +30,7 @@ export function PipelineBoard({ stages, totalRequested }: PipelineBoardProps) {
         </div>
         <Link
           href="/admin/pipeline"
-          className="inline-flex items-center gap-1 text-[13px] font-medium text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1 text-[13.5px] font-medium text-muted-foreground hover:text-foreground"
         >
           Open pipeline
           <ArrowRight className="h-3.5 w-3.5" />
@@ -50,23 +50,23 @@ export function PipelineBoard({ stages, totalRequested }: PipelineBoardProps) {
                 )}
               >
                 <div className="flex items-center justify-between">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  <div className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                     Stage
                   </div>
                   {stage.attention && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-primary">
+                    <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-primary">
                       <CircleDot className="h-3.5 w-3.5" />
                       action
                     </span>
                   )}
                 </div>
-                <div className="mt-2 text-[17px] font-semibold tracking-[-0.015em]">
+                <div className="mt-2 text-[15px] font-semibold tracking-[-0.01em]">
                   {stage.label}
                 </div>
-                <div className="mt-4 tabular text-[46px] font-semibold leading-none tracking-[-0.035em]">
+                <div className="mt-4 tabular text-[50px] font-semibold leading-none tracking-[-0.035em]">
                   {stage.count}
                 </div>
-                <div className="mt-2 tabular text-[16px] font-semibold text-foreground/85">
+                <div className="mt-2 tabular text-[15px] font-semibold text-foreground/85">
                   {stage.amount ? `$${(stage.amount / 1_000_000).toFixed(1)}M` : "$0.0M"}
                 </div>
                 <p className="mt-2 line-clamp-2 text-[12.5px] leading-snug text-muted-foreground">

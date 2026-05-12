@@ -52,19 +52,19 @@ export default async function PortalPayments({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Payments</h1>
+      <h1 className="text-[21px] font-semibold tracking-[-0.02em]">Payments</h1>
 
       <PaymentsFilter loans={(loans || []) as never} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">
+      <Card className="rounded-3xl shadow-[var(--shadow-card)]">
+        <CardHeader className="px-6 py-5">
+          <CardTitle className="text-[13.5px]">
             {payments?.length || 0} payment{(payments?.length || 0) === 1 ? "" : "s"}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-6 pb-6">
           {!payments?.length ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
+            <p className="py-4 text-[13.5px] text-center text-muted-foreground">
               No payments match your filters.
             </p>
           ) : (

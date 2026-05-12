@@ -45,10 +45,10 @@ export function AdminHeader({ profile, onMenuToggle }: AdminHeaderProps) {
         </Button>
 
         <div className="min-w-0">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.11em] text-muted-foreground">
+          <div className="text-[10.5px] font-semibold uppercase tracking-[0.11em] text-muted-foreground">
             {routeMeta.section}
           </div>
-          <h1 className="mt-1 truncate text-[22px] font-semibold tracking-[-0.02em] text-foreground">
+          <h1 className="mt-1 truncate text-[21px] font-semibold tracking-[-0.02em] text-foreground">
             {routeMeta.title}
           </h1>
         </div>
@@ -64,7 +64,7 @@ export function AdminHeader({ profile, onMenuToggle }: AdminHeaderProps) {
             placeholder={routeMeta.description}
             className="flex-1 border-0 bg-transparent text-[13.5px] text-foreground outline-0 placeholder:text-muted-foreground"
           />
-          <span className="mono rounded-md border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+          <span className="mono rounded-md border bg-muted px-2 py-0.5 text-[10.5px] text-muted-foreground">
             ⌘K
           </span>
         </div>
@@ -96,7 +96,7 @@ export function AdminHeader({ profile, onMenuToggle }: AdminHeaderProps) {
           </span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem className="text-xs text-muted-foreground" disabled>
+          <DropdownMenuItem className="text-[12px] text-muted-foreground" disabled>
             {profile.role.replace(/_/g, " ")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => signOut()}>

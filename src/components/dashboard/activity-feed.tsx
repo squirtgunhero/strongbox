@@ -30,11 +30,11 @@ export function ActivityFeed({ entries }: ActivityFeedProps) {
       <div className="flex min-h-[84px] items-center justify-between border-b px-7 py-5">
         <div>
           <div className="text-[21px] font-semibold tracking-[-0.02em]">Borrower activity</div>
-          <div className="mt-1 text-[13px] text-muted-foreground">Recent updates and servicing events</div>
+          <div className="mt-1 text-[13.5px] text-muted-foreground">Recent updates and servicing events</div>
         </div>
         <Link
           href="/admin/audit"
-          className="inline-flex items-center gap-1 text-[13px] font-medium text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1 text-[13.5px] font-medium text-muted-foreground hover:text-foreground"
         >
           Audit log
           <ArrowRight className="h-3.5 w-3.5" />
@@ -56,8 +56,8 @@ export function ActivityFeed({ entries }: ActivityFeedProps) {
             ))}
           </div>
           <div className="mt-6 rounded-2xl border border-dashed bg-muted/30 px-4 py-4">
-            <div className="text-[14px] font-medium">No borrower activity yet</div>
-            <p className="mt-1 text-[12px] text-muted-foreground">
+            <div className="text-[15px] font-medium">No borrower activity yet</div>
+            <p className="mt-1 text-[13.5px] text-muted-foreground">
               Draw requests, payment events, and document actions will appear here with timeline context.
             </p>
           </div>
@@ -75,15 +75,15 @@ export function ActivityFeed({ entries }: ActivityFeedProps) {
                   <span
                     className={`relative z-10 h-2.5 w-2.5 rounded-full ${DOT_COLOR[entry.kind]} ring-4 ring-card`}
                   />
-                  <div className="min-w-0 text-[13px]">
+                  <div className="min-w-0 text-[13.5px]">
                     <div className="truncate">
                       <span className="mr-1.5 font-semibold text-foreground">
                         {entry.who}
                       </span>
-                      <span className="text-[12.5px] text-muted-foreground">{entry.text}</span>
+                      <span className="text-[13.5px] text-muted-foreground">{entry.text}</span>
                     </div>
                   </div>
-                  <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                  <span className="whitespace-nowrap text-[10.5px] text-muted-foreground">
                     {entry.at}
                   </span>
                 </Link>

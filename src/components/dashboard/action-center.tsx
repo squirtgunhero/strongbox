@@ -89,7 +89,7 @@ export function ActionCenter({ rows }: ActionCenterProps) {
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-[21px] font-semibold tracking-[-0.02em]">This week</div>
-            <div className="mt-1 text-[13px] text-muted-foreground">Servicing queue and operator priorities</div>
+            <div className="mt-1 text-[13.5px] text-muted-foreground">Servicing queue and operator priorities</div>
           </div>
           <AlertTriangle className="h-4 w-4 text-muted-foreground" />
         </div>
@@ -113,12 +113,12 @@ export function ActionCenter({ rows }: ActionCenterProps) {
                 </div>
                 <div className="min-w-0">
                   <div className="text-[15px] font-semibold leading-tight">{item.title}</div>
-                  <div className="mt-1 truncate text-[13px] text-muted-foreground">
+                  <div className="mt-1 truncate text-[13.5px] text-muted-foreground">
                     {item.description}
                   </div>
                 </div>
                 <span
-                  className={`inline-flex h-8 items-center rounded-lg border px-3 text-[11px] font-semibold uppercase tracking-[0.08em] ${tone.button}`}
+                  className={`inline-flex h-8 items-center rounded-lg border px-3 text-[10.5px] font-semibold uppercase tracking-[0.08em] ${tone.button}`}
                 >
                   {item.cta}
                 </span>
@@ -130,7 +130,7 @@ export function ActionCenter({ rows }: ActionCenterProps) {
       <div className="border-t px-7 py-3.5">
         <Link
           href="/admin/servicing"
-          className="inline-flex items-center gap-1 text-[13px] font-medium text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1 text-[13.5px] font-medium text-muted-foreground hover:text-foreground"
         >
           Open servicing queue
           <ArrowRight className="h-3.5 w-3.5" />

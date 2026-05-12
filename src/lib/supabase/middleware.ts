@@ -1,12 +1,39 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getSupabasePublicKey, getSupabaseUrl } from "@/lib/supabase/env";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
+  const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
+  const isPortalRoute = request.nextUrl.pathname.startsWith("/portal");
+  const isInvestorRoute = request.nextUrl.pathname.startsWith("/investor");
+  const isDocumentsRoute = request.nextUrl.pathname.startsWith("/documents");
+  const isLoginRoute = request.nextUrl.pathname === "/login";
+  const isProtected =
+    isAdminRoute || isPortalRoute || isInvestorRoute || isDocumentsRoute;
+
+  const supabaseUrl = getSupabaseUrl();
+  const supabasePublicKey = getSupabasePublicKey();
+
+  if (!supabaseUrl || !supabasePublicKey) {
+    console.error(
+      "Supabase middleware configuration missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY)."
+    );
+
+    if (isProtected) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("error", "auth-config-missing");
+      return NextResponse.redirect(url);
+    }
+
+    return supabaseResponse;
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabasePublicKey,
     {
       cookies: {
         getAll() {
@@ -28,14 +55,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
-  const isPortalRoute = request.nextUrl.pathname.startsWith("/portal");
-  const isInvestorRoute = request.nextUrl.pathname.startsWith("/investor");
-  const isDocumentsRoute = request.nextUrl.pathname.startsWith("/documents");
-  const isLoginRoute = request.nextUrl.pathname === "/login";
-  const isProtected =
-    isAdminRoute || isPortalRoute || isInvestorRoute || isDocumentsRoute;
 
   if (!user && isProtected) {
     const url = request.nextUrl.clone();

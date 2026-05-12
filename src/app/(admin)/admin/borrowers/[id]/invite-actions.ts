@@ -5,6 +5,25 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { borrowerDisplayName } from "@/lib/format";
 
+function getAppBaseUrl() {
+  const configured =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_URL;
+
+  if (!configured) {
+    throw new Error(
+      "Missing app URL configuration. Set NEXT_PUBLIC_APP_URL (recommended) so invite/reset links point to the deployed site."
+    );
+  }
+
+  const withProtocol = configured.startsWith("http")
+    ? configured
+    : `https://${configured}`;
+  return withProtocol.replace(/\/$/, "");
+}
+
 export async function inviteBorrower(borrowerId: string) {
   const supabase = await createClient();
   const {
@@ -30,7 +49,7 @@ export async function inviteBorrower(borrowerId: string) {
   if (borrower.user_id) throw new Error("Borrower is already linked to a user");
 
   // Use Supabase admin API to invite via email
-  const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/reset-password`;
+  const redirectTo = `${getAppBaseUrl()}/reset-password`;
   const { data: invited, error: inviteError } =
     await admin.auth.admin.inviteUserByEmail(borrower.email, {
       redirectTo,
@@ -91,7 +110,7 @@ export async function inviteInvestor(investorId: string) {
   if (!investor.email) throw new Error("Investor has no email on file");
   if (investor.user_id) throw new Error("Investor is already linked");
 
-  const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/reset-password`;
+  const redirectTo = `${getAppBaseUrl()}/reset-password`;
   const { data: invited, error: inviteError } =
     await admin.auth.admin.inviteUserByEmail(investor.email, {
       redirectTo,

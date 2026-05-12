@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import crypto from "crypto";
+import { getSupabasePublicKey, getSupabaseUrl } from "@/lib/supabase/env";
 
 /**
  * Resend webhook events.
@@ -64,12 +65,16 @@ export async function POST(request: NextRequest) {
     return new Response("Acknowledged (no message id)", { status: 200 });
   }
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => [], setAll: () => {} } }
-  );
+  const supabaseUrl = getSupabaseUrl();
+  const fallbackPublicKey = getSupabasePublicKey();
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || fallbackPublicKey;
+  if (!supabaseUrl || !supabaseKey) {
+    return new Response("Supabase credentials not configured", { status: 500 });
+  }
+
+  const supabase = createServerClient(supabaseUrl, supabaseKey, {
+    cookies: { getAll: () => [], setAll: () => {} },
+  });
 
   const now = new Date().toISOString();
   const update: Record<string, unknown> = {};

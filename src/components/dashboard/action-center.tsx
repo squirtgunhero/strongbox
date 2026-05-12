@@ -7,25 +7,20 @@ import {
   FileX,
   Hammer,
 } from "lucide-react";
-import type { ComponentType } from "react";
 
 interface ActionRow {
   id: string;
   title: string;
+  count?: number;
+  timeLabel?: string;
   description: string;
   cta: string;
   tone: "warn" | "danger" | "neutral";
   href: string;
-  icon: ComponentType<{ className?: string }>;
 }
 
 interface ActionCenterProps {
-  rows: {
-    missingDocs: number;
-    drawRequests: number;
-    needsReview: number;
-    upcomingMaturities: number;
-  };
+  rows: ActionRow[];
 }
 
 const TONE_STYLES = {
@@ -44,44 +39,20 @@ const TONE_STYLES = {
 } as const;
 
 export function ActionCenter({ rows }: ActionCenterProps) {
-  const items: ActionRow[] = [
-    {
-      id: "docs",
-      title: rows.missingDocs > 0 ? `${rows.missingDocs} missing document conditions` : "No missing document conditions",
-      description: "Conditions and document checklists waiting on borrower uploads.",
-      cta: "Review",
-      tone: rows.missingDocs > 0 ? "warn" : "neutral",
-      href: "/admin/loans",
-      icon: FileX,
-    },
-    {
-      id: "draws",
-      title: rows.drawRequests > 0 ? `${rows.drawRequests} draw requests need approval` : "No pending draw approvals",
-      description: "Requests waiting on inspection confirmation and sign-off.",
-      cta: "Approve",
-      tone: rows.drawRequests > 0 ? "danger" : "neutral",
-      href: "/admin/draws",
-      icon: Hammer,
-    },
-    {
-      id: "review",
-      title: rows.needsReview > 0 ? `${rows.needsReview} loans in underwriting review` : "No underwriting reviews pending",
-      description: "Files queued for underwriting decisions and condition updates.",
-      cta: "View",
-      tone: rows.needsReview > 0 ? "warn" : "neutral",
-      href: "/admin/loans?status=underwriting",
-      icon: Clock3,
-    },
-    {
-      id: "maturity",
-      title: rows.upcomingMaturities > 0 ? `${rows.upcomingMaturities} maturities inside 30 days` : "No maturities inside 30 days",
-      description: "Start extension or payoff outreach with borrowers this week.",
-      cta: "Contact",
-      tone: rows.upcomingMaturities > 0 ? "danger" : "neutral",
-      href: "/admin/servicing",
-      icon: CalendarClock,
-    },
-  ];
+  const iconForRow = (id: string) => {
+    switch (id) {
+      case "docs":
+        return FileX;
+      case "draws":
+        return Hammer;
+      case "review":
+        return Clock3;
+      case "maturity":
+        return CalendarClock;
+      default:
+        return AlertTriangle;
+    }
+  };
 
   return (
     <div className="overflow-hidden rounded-3xl border bg-card shadow-[var(--shadow-card)]">
@@ -95,9 +66,9 @@ export function ActionCenter({ rows }: ActionCenterProps) {
         </div>
       </div>
       <ul>
-        {items.map((item) => {
+        {rows.map((item) => {
           const tone = TONE_STYLES[item.tone];
-          const Icon = item.icon;
+          const Icon = iconForRow(item.id);
           return (
             <li key={item.id}>
               <Link
@@ -112,10 +83,22 @@ export function ActionCenter({ rows }: ActionCenterProps) {
                   <Icon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[15px] font-semibold leading-tight">{item.title}</div>
+                  <div className="text-[15px] font-semibold leading-tight">
+                    {item.title}
+                    {typeof item.count === "number" && (
+                      <span className="tabular ml-1.5 text-[13px] text-muted-foreground">
+                        {item.count}
+                      </span>
+                    )}
+                  </div>
                   <div className="mt-1 truncate text-[13.5px] text-muted-foreground">
                     {item.description}
                   </div>
+                  {item.timeLabel && (
+                    <div className="mt-0.5 text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground">
+                      {item.timeLabel}
+                    </div>
+                  )}
                 </div>
                 <span
                   className={`inline-flex h-8 items-center rounded-lg border px-3 text-[10.5px] font-semibold uppercase tracking-[0.08em] ${tone.button}`}

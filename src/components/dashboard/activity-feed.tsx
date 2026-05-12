@@ -1,30 +1,36 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import {
+  ArrowRight,
+  BellRing,
+  CheckCircle2,
+  CircleDollarSign,
+  FileClock,
+  MessagesSquare,
+  ShieldAlert,
+} from "lucide-react";
 
-export interface ActivityEntry {
-  kind: "payment" | "draw" | "doc" | "stage" | "alert" | "system";
-  who: string;
-  text: string;
-  at: string;
-  href?: string;
+export interface ActivitySummaryRow {
+  id: "docs" | "approvals" | "payments" | "updates" | "servicing";
+  label: string;
+  count: number;
+  detail: string;
+  href: string;
 }
 
-const DOT_COLOR: Record<ActivityEntry["kind"], string> = {
-  payment: "bg-[color:var(--status-success)]",
-  stage: "bg-[color:var(--status-success)]",
-  draw: "bg-[color:var(--status-info)]",
-  doc: "bg-[color:var(--status-warning)]",
-  alert: "bg-primary",
-  system: "bg-muted-foreground",
+const ROW_ICON: Record<ActivitySummaryRow["id"], typeof FileClock> = {
+  docs: FileClock,
+  approvals: CheckCircle2,
+  payments: CircleDollarSign,
+  updates: MessagesSquare,
+  servicing: ShieldAlert,
 };
 
 interface ActivityFeedProps {
-  entries: ActivityEntry[];
+  mode: "empty" | "demo" | "live";
+  rows: ActivitySummaryRow[];
 }
 
-export function ActivityFeed({ entries }: ActivityFeedProps) {
-  const isEmpty = entries.length === 0;
-
+export function ActivityFeed({ mode, rows }: ActivityFeedProps) {
   return (
     <div className="overflow-hidden rounded-3xl border bg-card shadow-[var(--shadow-card)]">
       <div className="flex min-h-[84px] items-center justify-between border-b px-7 py-5">
@@ -41,55 +47,45 @@ export function ActivityFeed({ entries }: ActivityFeedProps) {
         </Link>
       </div>
 
-      {isEmpty ? (
-        <div className="relative px-7 py-8">
-          <span className="absolute bottom-10 left-[30px] top-10 w-px bg-border" />
-          <div className="space-y-4">
-            {[0, 1, 2].map((row) => (
-              <div key={row} className="grid grid-cols-[14px_1fr] gap-3">
-                <span className="relative z-10 mt-1 h-2.5 w-2.5 rounded-full bg-muted ring-4 ring-card" />
-                <div className="space-y-2">
-                  <div className="h-2 rounded bg-muted/80" style={{ width: `${88 - row * 10}%` }} />
-                  <div className="h-2 rounded bg-muted/55" style={{ width: `${55 - row * 8}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 rounded-2xl border border-dashed bg-muted/30 px-4 py-4">
+      {rows.length === 0 ? (
+        <div className="px-7 py-8">
+          <div className="rounded-2xl border border-dashed bg-muted/30 px-4 py-4">
             <div className="text-[15px] font-medium">No borrower activity yet</div>
             <p className="mt-1 text-[13.5px] text-muted-foreground">
-              Draw requests, payment events, and document actions will appear here with timeline context.
+              Borrower events will appear once loans and servicing activity are active.
             </p>
           </div>
         </div>
       ) : (
-        <div className="relative">
-          <span className="absolute bottom-6 left-[30px] top-6 w-px bg-border" />
+        <div>
           <ul className="divide-y">
-            {entries.map((entry, idx) => (
-            <li key={`${entry.kind}-${entry.who}-${idx}`}>
+            {rows.map((row) => {
+              const Icon = ROW_ICON[row.id] || BellRing;
+              return (
+              <li key={row.id}>
                 <Link
-                  href={entry.href || "#"}
-                  className="grid grid-cols-[14px_1fr_auto] items-center gap-3 px-7 py-4.5 transition-colors hover:bg-muted/30"
+                  href={row.href}
+                  className="grid grid-cols-[32px_1fr_auto] items-center gap-3 px-7 py-4 transition-colors hover:bg-muted/30"
                 >
-                  <span
-                    className={`relative z-10 h-2.5 w-2.5 rounded-full ${DOT_COLOR[entry.kind]} ring-4 ring-card`}
-                  />
-                  <div className="min-w-0 text-[13.5px]">
-                    <div className="truncate">
-                      <span className="mr-1.5 font-semibold text-foreground">
-                        {entry.who}
-                      </span>
-                      <span className="text-[13.5px] text-muted-foreground">{entry.text}</span>
-                    </div>
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-muted text-muted-foreground">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="text-[14px] font-semibold">{row.label}</div>
+                    <div className="text-[13.5px] text-muted-foreground">{row.detail}</div>
                   </div>
-                  <span className="whitespace-nowrap text-[10.5px] text-muted-foreground">
-                    {entry.at}
+                  <span className="tabular rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-foreground/80">
+                    {row.count}
                   </span>
                 </Link>
               </li>
-            ))}
+            )})}
           </ul>
+          {mode === "empty" && (
+            <div className="border-t px-7 py-3 text-[12px] text-muted-foreground">
+              Onboarding mode shows setup-oriented activity placeholders.
+            </div>
+          )}
         </div>
       )}
     </div>

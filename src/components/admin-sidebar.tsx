@@ -8,7 +8,6 @@ import {
   Users,
   Building2,
   Settings,
-  Landmark,
   Kanban,
   Banknote,
   Hammer,
@@ -17,17 +16,6 @@ import {
   ShieldCheck,
   Bell,
 } from "lucide-react";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
 
 const navItems = [
   { title: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -50,41 +38,69 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ profile }: AdminSidebarProps) {
   const pathname = usePathname();
+  const initials = (profile.full_name || "")
+    .split(/\s+/)
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   return (
-    <Sidebar>
-      <SidebarHeader className="border-b px-6 py-4">
-        <Link href="/admin" className="flex items-center gap-2">
-          <Landmark className="h-6 w-6" />
-          <span className="text-lg font-bold">StrongBox</span>
-        </Link>
-      </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Platform</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navItems.map((item) => {
-                const isActive =
-                  item.href === "/admin"
-                    ? pathname === "/admin"
-                    : pathname.startsWith(item.href);
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      render={<Link href={item.href} />}
-                      isActive={isActive}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-    </Sidebar>
+    <aside className="w-[232px] shrink-0 border-r border-border bg-background flex flex-col h-screen sticky top-0">
+      <div className="flex items-center gap-2.5 px-[18px] py-4">
+        <span className="h-7 w-7 rounded-md bg-foreground text-background grid place-items-center mono text-[13px] font-semibold">
+          S
+        </span>
+        <span className="font-semibold text-[15px] tracking-tight">
+          StrongBox
+        </span>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto px-2.5 pt-2 pb-2">
+        <div className="text-[10.5px] uppercase tracking-[0.06em] font-medium text-muted-foreground px-2.5 py-1.5">
+          Platform
+        </div>
+        <ul className="flex flex-col gap-0.5">
+          {navItems.map((item) => {
+            const isActive =
+              item.href === "/admin"
+                ? pathname === "/admin"
+                : pathname.startsWith(item.href);
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13.5px] font-medium transition-colors ${
+                    isActive
+                      ? "bg-card text-foreground border border-border shadow-[0_1px_0_rgba(0,0,0,0.04)]"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{item.title}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      <div className="border-t border-border p-2.5">
+        <div className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-muted">
+          <div className="h-7 w-7 rounded-full bg-muted border border-border grid place-items-center text-[11px] font-semibold text-muted-foreground">
+            {initials || "U"}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-medium truncate">
+              {profile.full_name}
+            </div>
+            <div className="text-[11px] text-muted-foreground truncate capitalize">
+              {profile.role.replace(/_/g, " ")}
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
   );
 }

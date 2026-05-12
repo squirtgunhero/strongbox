@@ -27,25 +27,25 @@ export function MetricCard({
   emptyRail,
 }: BaseProps) {
   return (
-    <div className="relative rounded-2xl border bg-card p-5 flex flex-col gap-3 shadow-[0_1px_0_rgba(15,17,21,0.04),0_2px_8px_-4px_rgba(15,17,21,0.06)]">
+    <div className="relative flex min-h-[246px] flex-col gap-5 rounded-3xl border bg-card p-7 shadow-[var(--shadow-card)]">
       <div className="flex items-center justify-between">
-        <div className="text-[11px] uppercase tracking-[0.08em] font-semibold text-muted-foreground">
+        <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           {label}
         </div>
         {Icon && (
-          <div className="h-7 w-7 rounded-lg bg-muted text-muted-foreground grid place-items-center">
-            <Icon className="h-3.5 w-3.5" />
+          <div className="grid h-10 w-10 place-items-center rounded-xl border bg-muted/55 text-muted-foreground">
+            <Icon className="h-4.5 w-4.5" />
           </div>
         )}
       </div>
-      <div className="flex items-baseline gap-2">
-        <div className="tabular text-[28px] font-semibold tracking-[-0.025em] leading-none text-foreground">
+      <div className="flex min-h-[58px] items-baseline gap-2.5">
+        <div className="tabular text-[48px] font-semibold leading-none tracking-[-0.03em] text-foreground">
           {value}
         </div>
         {delta && (
           <span
             className={cn(
-              "inline-flex items-center gap-0.5 text-[11px] font-semibold tracking-tight",
+              "inline-flex items-center gap-0.5 text-[14px] font-semibold tracking-tight",
               delta.dir === "up" && "text-[color:var(--status-success)]",
               delta.dir === "down" && "text-primary",
               delta.dir === "flat" && "text-muted-foreground"
@@ -56,20 +56,22 @@ export function MetricCard({
           </span>
         )}
       </div>
-      <div className="flex items-center justify-between gap-3">
+      <div className="mt-auto flex min-h-[30px] items-center justify-between gap-3">
         {status && <StatusPill tone={status.tone}>{status.label}</StatusPill>}
         {sub && (
-          <div className="text-[11.5px] text-muted-foreground truncate">
+          <div className="truncate text-[14px] text-muted-foreground">
             {sub}
           </div>
         )}
       </div>
       {spark && spark.length > 0 ? (
-        <Sparkline data={spark} width={280} height={28} />
+        <div className="-mt-0.5 rounded-xl border bg-muted/25 px-3 py-2">
+          <Sparkline data={spark} width={220} height={36} />
+        </div>
       ) : (
         emptyRail && (
-          <div className="relative h-[3px] rounded-full bg-muted overflow-hidden">
-            <div className="absolute left-0 top-0 bottom-0 w-1/4 rounded-full bg-foreground/20" />
+          <div className="relative h-[6px] overflow-hidden rounded-full bg-muted">
+            <div className="absolute bottom-0 left-0 top-0 w-1/3 rounded-full bg-foreground/25" />
           </div>
         )
       )}
@@ -183,7 +185,7 @@ function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-full text-[10.5px] font-medium border tracking-tight",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-semibold uppercase tracking-[0.05em]",
         toneStyles
       )}
     >

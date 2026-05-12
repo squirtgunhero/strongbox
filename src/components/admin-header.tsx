@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,15 +9,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Search, LogOut, Plus } from "lucide-react";
+import { Menu, Search, LogOut, Plus } from "lucide-react";
 import { signOut } from "@/app/(auth)/login/actions";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { getAdminRouteMeta } from "@/components/admin-nav";
 
 interface AdminHeaderProps {
   profile: { full_name: string; role: string };
+  onMenuToggle: () => void;
 }
 
-export function AdminHeader({ profile }: AdminHeaderProps) {
+export function AdminHeader({ profile, onMenuToggle }: AdminHeaderProps) {
+  const pathname = usePathname();
+  const routeMeta = getAdminRouteMeta(pathname);
+
   const initials =
     (profile.full_name || "")
       .split(/\s+/)
@@ -26,29 +32,51 @@ export function AdminHeader({ profile }: AdminHeaderProps) {
       .join("")
       .toUpperCase() || "U";
   return (
-    <header className="sticky top-0 z-10 flex h-[56px] items-center gap-3 border-b bg-background/90 backdrop-blur px-7">
-      <div className="flex-1 max-w-[420px]">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-background shadow-[var(--shadow-card)] text-muted-foreground focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/40 transition">
-          <Search className="h-3.5 w-3.5" />
+    <header className="sticky top-0 z-20 border-b bg-background/96 shadow-[0_1px_0_rgba(18,22,28,0.05)] backdrop-blur">
+      <div className="mx-auto flex min-h-[82px] w-full max-w-[1640px] items-center gap-4 px-5 sm:px-8 xl:px-12">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"
+          onClick={onMenuToggle}
+          aria-label="Open navigation menu"
+        >
+          <Menu className="h-4 w-4" />
+        </Button>
+
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.11em] text-muted-foreground">
+            {routeMeta.section}
+          </div>
+          <h1 className="mt-1 truncate text-[24px] font-semibold tracking-[-0.02em] text-foreground">
+            {routeMeta.title}
+          </h1>
+        </div>
+
+        <div className="hidden flex-1 min-[1100px]:block" />
+
+        <div className="hidden min-w-0 flex-1 max-w-[620px] min-[1100px]:block">
+        <div className="flex items-center gap-2 rounded-xl border bg-card px-4 py-2.5 text-muted-foreground shadow-[var(--shadow-card)] transition focus-within:border-primary/35 focus-within:ring-2 focus-within:ring-primary/20">
+          <Search className="h-4 w-4" />
           <input
             type="text"
-            placeholder="Search loans, borrowers, properties..."
-            className="flex-1 bg-transparent border-0 outline-0 text-[13px] text-foreground placeholder:text-muted-foreground"
+            aria-label="Search loans, borrowers, and properties"
+            placeholder={routeMeta.description}
+            className="flex-1 border-0 bg-transparent text-[14px] text-foreground outline-0 placeholder:text-muted-foreground"
           />
-          <span className="mono text-[10.5px] px-1.5 py-0.5 border rounded text-muted-foreground bg-muted">
+          <span className="mono rounded-md border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
             ⌘K
           </span>
         </div>
       </div>
 
-      <div className="flex-1" />
-
       <Button
         nativeButton={false}
-        size="sm"
+        size="default"
+        className="h-10 rounded-xl px-4 font-semibold shadow-[0_10px_28px_-12px_oklch(0.56_0.23_26/0.8)]"
         render={<Link href="/admin/loans/new" />}
       >
-        <Plus className="h-3.5 w-3.5" />
+        <Plus className="h-4 w-4" />
         New loan
       </Button>
 
@@ -57,19 +85,19 @@ export function AdminHeader({ profile }: AdminHeaderProps) {
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button variant="ghost" size="sm" className="gap-2 px-2.5" />
+            <Button variant="ghost" size="default" className="h-10 gap-2 rounded-xl px-3" />
           }
         >
-          <span className="h-7 w-7 rounded-full bg-primary/10 grid place-items-center text-[11px] font-semibold text-primary">
+          <span className="grid h-8 w-8 place-items-center rounded-full bg-primary/10 text-[12px] font-semibold text-primary">
             {initials}
           </span>
-          <span className="text-[13px] font-medium hidden sm:inline">
+          <span className="hidden text-[14px] font-medium sm:inline">
             {profile.full_name}
           </span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem className="text-xs text-muted-foreground" disabled>
-            {profile.role}
+            {profile.role.replace(/_/g, " ")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => signOut()}>
             <LogOut className="mr-2 h-4 w-4" />
@@ -77,6 +105,7 @@ export function AdminHeader({ profile }: AdminHeaderProps) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
     </header>
   );
 }

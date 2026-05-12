@@ -22,98 +22,68 @@ interface ActivityFeedProps {
   entries: ActivityEntry[];
 }
 
-/**
- * Activity feed with a continuous vertical timeline rail. When empty,
- * shows skeleton-like placeholder rows with an explanation and a CTA.
- */
 export function ActivityFeed({ entries }: ActivityFeedProps) {
   const isEmpty = entries.length === 0;
 
   return (
-    <div className="rounded-2xl border bg-card shadow-[0_1px_0_rgba(15,17,21,0.04),0_2px_8px_-4px_rgba(15,17,21,0.06)] overflow-hidden">
-      <div className="px-5 py-3.5 border-b flex items-center justify-between">
+    <div className="overflow-hidden rounded-3xl border bg-card shadow-[var(--shadow-card)]">
+      <div className="flex min-h-[84px] items-center justify-between border-b px-7 py-5">
         <div>
-          <div className="text-[13.5px] font-semibold tracking-tight">
-            Activity
-          </div>
-          <div className="text-[11.5px] text-muted-foreground mt-0.5">
-            Recent updates across your portfolio
-          </div>
+          <div className="text-[21px] font-semibold tracking-[-0.02em]">Borrower activity</div>
+          <div className="mt-1 text-[13px] text-muted-foreground">Recent updates and servicing events</div>
         </div>
         <Link
           href="/admin/audit"
-          className="inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1 text-[13px] font-medium text-muted-foreground hover:text-foreground"
         >
           Audit log
-          <ArrowRight className="h-3 w-3" />
+          <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>
 
       {isEmpty ? (
-        <div className="relative px-5 py-5">
-          {/* Vertical timeline rail */}
-          <span className="absolute left-[26px] top-6 bottom-16 w-px bg-border" />
-          <ul className="space-y-3 mb-5">
-            {[0, 1, 2].map((i) => (
-              <li
-                key={i}
-                className="grid grid-cols-[16px_1fr_auto] gap-3 items-center"
-              >
-                <span className="relative z-10 h-2 w-2 rounded-full bg-muted ring-4 ring-card" />
-                <div className="flex-1 space-y-1.5">
-                  <div
-                    className="h-2 rounded bg-muted/80"
-                    style={{ width: `${[70, 55, 80][i]}%` }}
-                  />
-                  <div
-                    className="h-1.5 rounded bg-muted/50"
-                    style={{ width: `${[45, 35, 60][i]}%` }}
-                  />
+        <div className="relative px-7 py-8">
+          <span className="absolute bottom-10 left-[30px] top-10 w-px bg-border" />
+          <div className="space-y-4">
+            {[0, 1, 2].map((row) => (
+              <div key={row} className="grid grid-cols-[14px_1fr] gap-3">
+                <span className="relative z-10 mt-1 h-2.5 w-2.5 rounded-full bg-muted ring-4 ring-card" />
+                <div className="space-y-2">
+                  <div className="h-2 rounded bg-muted/80" style={{ width: `${88 - row * 10}%` }} />
+                  <div className="h-2 rounded bg-muted/55" style={{ width: `${55 - row * 8}%` }} />
                 </div>
-                <span className="h-1.5 w-10 rounded bg-muted/50" />
-              </li>
+              </div>
             ))}
-          </ul>
-          <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/30 p-4">
-            <div className="text-[13px] font-medium text-foreground">
-              No recent activity yet
-            </div>
-            <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
-              Loan updates, draw requests, document changes, and approvals
-              will appear here as your team works.
+          </div>
+          <div className="mt-6 rounded-2xl border border-dashed bg-muted/30 px-4 py-4">
+            <div className="text-[14px] font-medium">No borrower activity yet</div>
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              Draw requests, payment events, and document actions will appear here with timeline context.
             </p>
-            <Link
-              href="/admin/audit"
-              className="mt-3 inline-flex items-center gap-1 text-[12px] font-medium text-foreground hover:text-primary"
-            >
-              View audit log
-              <ArrowRight className="h-3 w-3" />
-            </Link>
           </div>
         </div>
       ) : (
         <div className="relative">
-          {/* Continuous rail */}
-          <span className="absolute left-[27px] top-5 bottom-5 w-px bg-border" />
-          <ul>
+          <span className="absolute bottom-6 left-[30px] top-6 w-px bg-border" />
+          <ul className="divide-y">
             {entries.map((entry, idx) => (
-              <li key={idx}>
+            <li key={`${entry.kind}-${entry.who}-${idx}`}>
                 <Link
                   href={entry.href || "#"}
-                  className="relative grid grid-cols-[16px_1fr_auto] gap-3 items-center px-5 py-3 border-t first:border-t-0 hover:bg-muted/40 transition-colors"
+                  className="grid grid-cols-[14px_1fr_auto] items-center gap-3 px-7 py-4.5 transition-colors hover:bg-muted/30"
                 >
                   <span
-                    className={`relative z-10 h-2 w-2 rounded-full ${DOT_COLOR[entry.kind]} ring-4 ring-card`}
+                    className={`relative z-10 h-2.5 w-2.5 rounded-full ${DOT_COLOR[entry.kind]} ring-4 ring-card`}
                   />
-                  <div className="text-[13px] min-w-0">
+                  <div className="min-w-0 text-[13px]">
                     <div className="truncate">
-                      <span className="font-medium mono text-[11.5px] text-muted-foreground mr-1.5">
+                      <span className="mr-1.5 font-semibold text-foreground">
                         {entry.who}
                       </span>
-                      <span className="text-foreground">{entry.text}</span>
+                      <span className="text-muted-foreground">{entry.text}</span>
                     </div>
                   </div>
-                  <span className="text-[11px] text-muted-foreground mono whitespace-nowrap">
+                  <span className="whitespace-nowrap text-[11px] text-muted-foreground">
                     {entry.at}
                   </span>
                 </Link>

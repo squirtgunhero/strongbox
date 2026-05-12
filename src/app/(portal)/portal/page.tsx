@@ -1,21 +1,53 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency, formatRate, formatDate, propertyAddress } from "@/lib/format";
+import { formatCurrency, formatRate, formatDate } from "@/lib/format";
 import { LOAN_STATUS_LABELS, type LoanStatus } from "@/lib/types";
-import { ArrowRight } from "lucide-react";
+import { DownloadButton } from "./documents/download-button";
+import {
+  ArrowRight,
+  BadgeDollarSign,
+  FileText,
+  ShieldCheck,
+  Upload,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-function daysUntil(dateStr: string | null): number | null {
+function daysUntil(dateStr: string | null, nowTs: number): number | null {
   if (!dateStr) return null;
   const target = new Date(dateStr + "T00:00:00Z").getTime();
-  return Math.ceil((target - Date.now()) / (1000 * 60 * 60 * 24));
+  return Math.ceil((target - nowTs) / (1000 * 60 * 60 * 24));
+}
+
+function loanAddress(loan: PortalLoan): string {
+  const property = loan.property;
+  if (!property) return "Property not set";
+  return [
+    property.address_street || "",
+    property.address_city || "",
+    property.address_state || "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function drawStatusLabel(status: string): string {
+  return status.replace(/_/g, " ");
 }
 
 export default async function PortalDashboard() {
+  const nowTs = new Date().getTime();
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const [{ data: loans }, { data: notifications }] = await Promise.all([
+  const [{ data: profile }, { data: loans }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user?.id ?? "")
+      .single(),
     supabase
       .from("loans")
       .select(`
@@ -23,120 +55,310 @@ export default async function PortalDashboard() {
         property:properties(*)
       `)
       .order("status", { ascending: true }),
-    supabase
-      .from("notifications")
-      .select("id, subject, body, event_type, created_at, related_loan_id")
-      .order("created_at", { ascending: false })
-      .limit(3),
   ]);
 
+  const primaryLoan = (loans || []).find((loan) =>
+    ["funded", "active", "approved", "defaulted"].includes(loan.status)
+  ) || (loans || [])[0];
+
+  const [{ data: payments }, { data: draws }, { data: documents }] = primaryLoan
+    ? await Promise.all([
+        supabase
+          .from("payments")
+          .select("id, due_date, received_date, amount, payment_type")
+          .eq("loan_id", primaryLoan.id)
+          .order("due_date", { ascending: false })
+          .limit(8),
+        supabase
+          .from("draws")
+          .select("id, status, requested_amount, approved_amount, requested_at")
+          .eq("loan_id", primaryLoan.id)
+          .order("requested_at", { ascending: true })
+          .limit(8),
+        supabase
+          .from("loan_documents")
+          .select("id, filename, category, created_at, storage_path")
+          .eq("loan_id", primaryLoan.id)
+          .order("created_at", { ascending: false })
+          .limit(6),
+      ])
+    : [{ data: [] }, { data: [] }, { data: [] }];
+
+  const nextPayment = (payments || [])
+    .filter((payment) => !payment.received_date && payment.due_date)
+    .sort(
+      (a, b) =>
+        new Date(a.due_date || "").getTime() - new Date(b.due_date || "").getTime()
+    )[0];
+  const daysToNextPayment = daysUntil(nextPayment?.due_date ?? null, nowTs);
+  const firstName = profile?.full_name?.trim().split(/\s+/)[0] || "there";
+
+  const rehabBudget = Number(primaryLoan?.property?.rehab_budget) || 0;
+  const fundedDrawAmount = (draws || []).reduce((sum, draw) => {
+    if (draw.status !== "funded") return sum;
+    return sum + Number(draw.approved_amount ?? draw.requested_amount ?? 0);
+  }, 0);
+  const drawProgressPct =
+    rehabBudget > 0 ? Math.min(100, (fundedDrawAmount / rehabBudget) * 100) : 0;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="sb-h1">Welcome back</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {loans?.length || 0} loan{(loans?.length || 0) === 1 ? "" : "s"} on file
+        <h1 className="text-[42px] font-semibold tracking-[-0.03em] leading-[1.05] text-foreground">
+          Welcome back, {firstName}
+        </h1>
+        <p className="mt-1 text-[13px] text-muted-foreground">
+          {(loans || []).length} active loan{(loans || []).length === 1 ? "" : "s"}
+          {daysToNextPayment !== null ? ` · next payment in ${Math.max(daysToNextPayment, 0)} days` : ""}
         </p>
       </div>
 
-      {!loans?.length ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            No loans on file yet. If you&apos;ve recently submitted an application,
-            check back soon.
-          </CardContent>
-        </Card>
+      {!primaryLoan ? (
+        <div className="rounded-2xl border bg-card px-6 py-12 text-center text-sm text-muted-foreground shadow-[var(--shadow-card)]">
+          No loans on file yet. If you recently submitted an application, check back soon.
+        </div>
       ) : (
-        (() => {
-          const active = loans.filter((l) =>
-            ["lead", "application", "underwriting", "approved", "funded", "active", "defaulted", "foreclosure"].includes(
-              l.status
-            )
-          );
-          const closed = loans.filter((l) => l.status === "paid_off");
+        <>
+          <div className="grid gap-3 rounded-2xl border bg-card p-4 shadow-[var(--shadow-card)] md:grid-cols-[1.4fr_1fr]">
+            <div>
+              <div className="mb-2 flex items-center gap-2">
+                <Badge variant="outline" className="bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]">
+                  Current
+                </Badge>
+              </div>
+              <h2 className="text-[34px] font-semibold tracking-[-0.03em] leading-[1.05]">
+                {loanAddress(primaryLoan)}
+              </h2>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                {primaryLoan.property?.address_zip || "—"} · {primaryLoan.id.slice(0, 8).toUpperCase()}
+              </div>
 
-          return (
-            <>
-              {active.length > 0 && (
-                <div className="grid gap-4">
-                  {active.map((loan) => (
-                    <LoanCard key={loan.id} loan={loan} />
-                  ))}
-                </div>
-              )}
+              <div className="mt-4 grid grid-cols-3 gap-4">
+                <Stat label="Balance" value={formatCurrency(primaryLoan.current_principal)} />
+                <Stat label="Rate" value={formatRate(primaryLoan.interest_rate)} />
+                <Stat label="Matures" value={formatDate(primaryLoan.maturity_date)} />
+              </div>
+            </div>
+            <div className="rounded-xl border bg-[repeating-linear-gradient(-45deg,transparent,transparent_10px,rgba(0,0,0,0.015)_10px,rgba(0,0,0,0.015)_20px)] p-4">
+              <div className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                Loan status
+              </div>
+              <div className="mt-2 text-[14px] font-medium">
+                {LOAN_STATUS_LABELS[primaryLoan.status as LoanStatus] || primaryLoan.status}
+              </div>
+              <div className="mt-4 text-[11px] text-muted-foreground">
+                View full details, statements, payoff request, and servicing updates.
+              </div>
+              <Button
+                nativeButton={false}
+                size="xs"
+                variant="outline"
+                className="mt-4"
+                render={<Link href={`/portal/loans/${primaryLoan.id}`} />}
+              >
+                Open loan
+                <ArrowRight className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
 
-              {closed.length > 0 && (
-                <details className="group" open={active.length === 0}>
-                  <summary className="cursor-pointer text-sm font-medium text-muted-foreground mb-3 hover:text-foreground inline-flex items-center gap-1.5">
-                    Paid Off ({closed.length})
-                    <span className="text-xs group-open:rotate-90 transition-transform">
-                      ▶
-                    </span>
-                  </summary>
-                  <div className="grid gap-4">
-                    {closed.map((loan) => (
-                      <LoanCard key={loan.id} loan={loan} muted />
-                    ))}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-card px-4 py-3 shadow-[var(--shadow-card)]">
+            <div>
+              <div className="text-[11px] text-muted-foreground">Next payment due</div>
+              <div className="tabular text-[42px] font-semibold tracking-[-0.03em] leading-none">
+                {nextPayment ? formatCurrency(nextPayment.amount) : "—"}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {nextPayment ? `${formatDate(nextPayment.due_date)} · interest-only` : "No scheduled payment"}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                nativeButton={false}
+                variant="outline"
+                size="sm"
+                render={<Link href={`/portal/loans/${primaryLoan.id}`} />}
+              >
+                Schedule autopay
+              </Button>
+              <Button
+                nativeButton={false}
+                size="sm"
+                render={<Link href={`/portal/loans/${primaryLoan.id}`} />}
+              >
+                Pay now
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <QuickAction
+              href={`/portal/loans/${primaryLoan.id}`}
+              title="Request draw"
+              subtitle={`${formatCurrency(Math.max(0, rehabBudget - fundedDrawAmount))} remaining`}
+              icon={BadgeDollarSign}
+            />
+            <QuickAction
+              href={`/portal/loans/${primaryLoan.id}`}
+              title="Request payoff"
+              subtitle="PDF in seconds"
+              icon={FileText}
+            />
+            <QuickAction
+              href={`/portal/loans/${primaryLoan.id}`}
+              title="Update insurance"
+              subtitle="Renewals and policy details"
+              icon={ShieldCheck}
+            />
+            <QuickAction
+              href={`/portal/documents`}
+              title="Upload documents"
+              subtitle="Invoices, photos, and forms"
+              icon={Upload}
+            />
+          </div>
+
+          {rehabBudget > 0 && (
+            <div className="rounded-2xl border bg-card p-4 shadow-[var(--shadow-card)]">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <div className="text-[13px] font-semibold">Rehab progress</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Draw {draws?.length || 0} inspection scheduled
                   </div>
-                </details>
-              )}
-            </>
-          );
-        })()
-      )}
-
-      {(notifications || []).length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-sm">Recent Activity</CardTitle>
-            <Link
-              href="/portal/notifications"
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              View all →
-            </Link>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-3">
-              {(notifications || []).map((n) => (
-                <li key={n.id} className="flex justify-between items-start gap-4 text-sm">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium truncate">{n.subject}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {formatDate(n.created_at)}
+                </div>
+                <div className="text-[12px] font-medium">
+                  {formatCurrency(fundedDrawAmount)} / {formatCurrency(rehabBudget)}
+                </div>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-[color:var(--status-success)]" style={{ width: `${drawProgressPct}%` }} />
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {(draws || []).slice(-4).map((draw, index) => (
+                  <div key={draw.id} className="rounded-xl border bg-background px-3 py-2.5">
+                    <div className="text-[10.5px] text-muted-foreground">Draw #{index + 1}</div>
+                    <div className="tabular text-[20px] font-semibold leading-none mt-1">
+                      {formatCurrency(Number(draw.approved_amount ?? draw.requested_amount ?? 0))}
+                    </div>
+                    <div className="mt-1 inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] capitalize text-muted-foreground">
+                      {drawStatusLabel(draw.status)}
                     </div>
                   </div>
-                  {n.related_loan_id && (
-                    <Link
-                      href={`/portal/loans/${n.related_loan_id}`}
-                      className="text-xs text-primary hover:underline shrink-0"
-                    >
-                      View →
-                    </Link>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+                ))}
+                {(draws || []).length === 0 && (
+                  <div className="text-[12px] text-muted-foreground sm:col-span-2 lg:col-span-4">
+                    No draws requested yet.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-3 lg:grid-cols-[1.2fr_1fr]">
+            <div className="overflow-hidden rounded-2xl border bg-card shadow-[var(--shadow-card)]">
+              <div className="border-b px-4 py-3">
+                <div className="text-[13px] font-semibold tracking-tight">Recent payments</div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-[12px]">
+                  <thead className="bg-muted/40 text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-2 font-medium">Date</th>
+                      <th className="px-4 py-2 font-medium">Type</th>
+                      <th className="px-4 py-2 text-right font-medium">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {(payments || []).slice(0, 5).map((payment) => (
+                      <tr key={payment.id}>
+                        <td className="px-4 py-2.5">{formatDate(payment.received_date || payment.due_date)}</td>
+                        <td className="px-4 py-2.5 capitalize">{payment.payment_type.replace(/_/g, " ")}</td>
+                        <td className="tabular px-4 py-2.5 text-right font-medium">{formatCurrency(payment.amount)}</td>
+                      </tr>
+                    ))}
+                    {(payments || []).length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="px-4 py-4 text-muted-foreground">
+                          No payments recorded yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border bg-card shadow-[var(--shadow-card)]">
+              <div className="border-b px-4 py-3">
+                <div className="text-[13px] font-semibold tracking-tight">Your documents</div>
+              </div>
+              <ul className="divide-y">
+                {(documents || []).slice(0, 4).map((doc) => (
+                  <li key={doc.id} className="flex items-center gap-2 px-4 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[12px] font-medium">{doc.filename}</div>
+                      <div className="text-[10.5px] text-muted-foreground">{formatDate(doc.created_at)}</div>
+                    </div>
+                    <DownloadButton storagePath={doc.storage_path} />
+                  </li>
+                ))}
+                {(documents || []).length === 0 && (
+                  <li className="px-4 py-4 text-[12px] text-muted-foreground">
+                    No documents available yet.
+                  </li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </>
       )}
     </div>
+  );
+}
+
+function QuickAction({
+  href,
+  title,
+  subtitle,
+  icon: Icon,
+}: {
+  href: string;
+  title: string;
+  subtitle: string;
+  icon: React.ComponentType<{ className?: string }>;
+}) {
+  return (
+    <Link
+      href={href}
+      className="rounded-xl border bg-card px-4 py-3 shadow-[var(--shadow-card)] transition-colors hover:bg-muted/30"
+    >
+      <div className="flex items-start gap-2">
+        <div className="grid h-6 w-6 place-items-center rounded-md bg-muted text-muted-foreground">
+          <Icon className="h-3.5 w-3.5" />
+        </div>
+        <div className="min-w-0">
+          <div className="text-[12px] font-semibold">{title}</div>
+          <div className="text-[10.5px] text-muted-foreground">{subtitle}</div>
+        </div>
+      </div>
+    </Link>
   );
 }
 
 function Stat({
   label,
   value,
-  highlight,
 }: {
   label: string;
   value: string;
-  highlight?: boolean;
 }) {
   return (
     <div>
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={`text-base font-semibold ${highlight ? "text-destructive" : ""}`}>
+      <div className="text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="tabular text-[28px] font-semibold tracking-[-0.025em] leading-none">
         {value}
       </div>
     </div>
@@ -149,62 +371,11 @@ interface PortalLoan {
   current_principal: number;
   interest_rate: number;
   maturity_date: string | null;
-  loan_amount: number;
   property: {
-    address_street: string;
-    address_city: string;
-    address_state: string;
-    address_zip: string;
+    address_street: string | null;
+    address_city: string | null;
+    address_state: string | null;
+    address_zip: string | null;
+    rehab_budget: number | null;
   } | null;
-}
-
-function LoanCard({ loan, muted = false }: { loan: PortalLoan; muted?: boolean }) {
-  const daysToMaturity = daysUntil(loan.maturity_date);
-  return (
-    <Link href={`/portal/loans/${loan.id}`} className="block">
-      <Card
-        className={`hover:bg-muted/30 transition-colors ${muted ? "opacity-75" : ""}`}
-      >
-        <CardHeader className="flex flex-row items-start justify-between pb-3">
-          <div>
-            <CardTitle className="text-base">
-              {loan.property ? propertyAddress(loan.property) : "Loan"}
-            </CardTitle>
-            <Badge variant="outline" className="mt-2">
-              {LOAN_STATUS_LABELS[loan.status as LoanStatus]}
-            </Badge>
-          </div>
-          <ArrowRight className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-4 text-sm">
-            {loan.status === "paid_off" ? (
-              <>
-                <Stat label="Original Amount" value={formatCurrency(loan.loan_amount)} />
-                <Stat label="Rate" value={formatRate(loan.interest_rate)} />
-                <Stat label="Paid Off" value={formatDate(loan.maturity_date)} />
-              </>
-            ) : (
-              <>
-                <Stat label="Current Balance" value={formatCurrency(loan.current_principal)} />
-                <Stat label="Rate" value={formatRate(loan.interest_rate)} />
-                <Stat label="Maturity" value={formatDate(loan.maturity_date)} />
-                <Stat
-                  label="Days Remaining"
-                  value={
-                    daysToMaturity === null
-                      ? "--"
-                      : daysToMaturity < 0
-                        ? `${Math.abs(daysToMaturity)}d overdue`
-                        : `${daysToMaturity}d`
-                  }
-                  highlight={daysToMaturity !== null && daysToMaturity < 30}
-                />
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
-  );
 }

@@ -27,25 +27,25 @@ export function DashboardCard({
   return (
     <div
       className={cn(
-        "rounded-2xl border bg-card flex flex-col min-w-0",
+        "flex min-w-0 flex-col rounded-3xl border bg-card",
         "shadow-[var(--shadow-card)]",
         className
       )}
     >
-      <div className="flex items-start justify-between gap-3 px-5 py-4 border-b">
+      <div className="flex min-h-[84px] items-start justify-between gap-4 border-b px-7 py-5">
         <div>
-          <div className="text-[13.5px] font-semibold tracking-tight">
+          <div className="text-[21px] font-semibold tracking-[-0.02em]">
             {title}
           </div>
           {subtitle && (
-            <div className="text-[12px] text-muted-foreground mt-0.5">
+            <div className="mt-1.5 text-[14px] text-muted-foreground">
               {subtitle}
             </div>
           )}
         </div>
         {action}
       </div>
-      <div className={cn(noContentPadding ? "" : "p-5")}>{children}</div>
+      <div className={cn(noContentPadding ? "" : "p-7")}>{children}</div>
     </div>
   );
 }

@@ -22,6 +22,7 @@ import { LOAN_STATUS_LABELS, type LoanStatus } from "@/lib/types";
 import { ChevronLeft } from "lucide-react";
 import { InsuranceDisplay } from "@/app/(admin)/admin/loans/[id]/insurance-display";
 import { LoanHistory } from "@/components/loan-history";
+import { DownloadButton } from "@/app/(portal)/portal/documents/download-button";
 
 export default async function InvestorLoanDetail({
   params,
@@ -59,6 +60,7 @@ export default async function InvestorLoanDetail({
     { data: position },
     { data: distributions },
     { data: history },
+    { data: propertyDocs },
   ] = await Promise.all([
     supabase
       .from("investor_positions")
@@ -73,6 +75,13 @@ export default async function InvestorLoanDetail({
       .eq("investor_id", investor.id)
       .order("distribution_date", { ascending: false }),
     supabase.rpc("loan_history", { loan_id_arg: id }),
+    loan.property_id
+      ? supabase
+          .from("property_documents")
+          .select("*")
+          .eq("property_id", loan.property_id)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
   ]);
 
   if (!position) notFound();
@@ -153,6 +162,48 @@ export default async function InvestorLoanDetail({
             insurance_updated_at: loan.insurance_updated_at ?? null,
           }}
         />
+      )}
+
+      {(propertyDocs || []).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Property Documents</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Filename</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Uploaded</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(propertyDocs || []).map(
+                  (d: {
+                    id: string;
+                    filename: string;
+                    category: string;
+                    storage_path: string;
+                    created_at: string;
+                  }) => (
+                    <TableRow key={d.id}>
+                      <TableCell className="font-medium">{d.filename}</TableCell>
+                      <TableCell className="capitalize">
+                        {d.category.replace(/_/g, " ")}
+                      </TableCell>
+                      <TableCell>{formatDate(d.created_at)}</TableCell>
+                      <TableCell>
+                        <DownloadButton storagePath={d.storage_path} />
+                      </TableCell>
+                    </TableRow>
+                  )
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       <Card>

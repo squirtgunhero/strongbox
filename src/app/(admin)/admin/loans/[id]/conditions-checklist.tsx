@@ -18,8 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CONDITION_TEMPLATES } from "@/lib/condition-templates";
-
 interface Condition {
   id: string;
   description: string;
@@ -29,12 +27,19 @@ interface Condition {
   satisfied_by_user?: { full_name: string } | null;
 }
 
+interface Template {
+  id: string;
+  name: string;
+}
+
 export function ConditionsChecklist({
   loanId,
   conditions,
+  templates = [],
 }: {
   loanId: string;
   conditions: Condition[];
+  templates?: Template[];
 }) {
   const [newCondition, setNewCondition] = useState("");
   const [newDueDate, setNewDueDate] = useState("");
@@ -96,7 +101,7 @@ export function ConditionsChecklist({
                 <SelectValue placeholder="Choose a template..." />
               </SelectTrigger>
               <SelectContent>
-                {CONDITION_TEMPLATES.map((t) => (
+                {templates.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name}
                   </SelectItem>

@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SettingsForm } from "./settings-form";
+import { ChevronRight } from "lucide-react";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -40,6 +42,21 @@ export default async function SettingsPage() {
           <SettingsForm settings={settings} />
         </CardContent>
       </Card>
+
+      <Link href="/admin/settings/condition-templates" className="block">
+        <Card className="hover:bg-muted/30 transition-colors">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-sm">Condition Templates</CardTitle>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Manage prebuilt condition sets staff can apply with one click
+              when underwriting a new loan.
+            </p>
+          </CardContent>
+        </Card>
+      </Link>
     </div>
   );
 }

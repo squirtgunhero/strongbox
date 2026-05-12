@@ -73,6 +73,7 @@ export default async function LoanDetailPage({
     { data: investorPositions },
     { data: availableInvestors },
     { data: conditions },
+    { data: conditionTemplates },
     { data: staff },
     { data: auditEntries },
     { data: paymentIntents },
@@ -125,6 +126,11 @@ export default async function LoanDetailPage({
       .select("*")
       .eq("loan_id", id)
       .order("created_at", { ascending: true }),
+    supabase
+      .from("condition_templates")
+      .select("id, name")
+      .order("is_builtin", { ascending: false })
+      .order("name", { ascending: true }),
     supabase
       .from("profiles")
       .select("id, full_name")
@@ -360,7 +366,11 @@ export default async function LoanDetailPage({
 
       {/* Conditions + Notes side by side */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <ConditionsChecklist loanId={loan.id} conditions={conditions || []} />
+        <ConditionsChecklist
+          loanId={loan.id}
+          conditions={conditions || []}
+          templates={conditionTemplates || []}
+        />
         <NotesThread loanId={loan.id} notes={notes || []} />
       </div>
 

@@ -2,7 +2,6 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { CONDITION_TEMPLATES } from "@/lib/condition-templates";
 
 export async function addCondition(
   loanId: string,
@@ -74,16 +73,20 @@ export async function applyConditionTemplate(
   loanId: string,
   templateId: string
 ) {
-  const template = CONDITION_TEMPLATES.find((t) => t.id === templateId);
-  if (!template) throw new Error("Template not found");
-
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const rows = template.conditions.map((description) => ({
+  const { data: template } = await supabase
+    .from("condition_templates")
+    .select("conditions")
+    .eq("id", templateId)
+    .single();
+  if (!template) throw new Error("Template not found");
+
+  const rows = (template.conditions as string[]).map((description) => ({
     loan_id: loanId,
     description,
   }));

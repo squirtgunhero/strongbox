@@ -164,6 +164,63 @@ export default async function AdminDashboard({
     concentrationAlerts.sort((a, b) => b.pct - a.pct);
   }
 
+  // Officer leaderboard (admins only, all-scope view)
+  let officerLeaderboard:
+    | {
+        name: string;
+        deployed: number;
+        activeCount: number;
+        pipelineCount: number;
+      }[]
+    | null = null;
+  if (profile?.role === "admin" && !isMine) {
+    const officerIds = Array.from(
+      new Set(
+        (allLoans || [])
+          .map((l) => l.loan_officer_id)
+          .filter((x): x is string => !!x)
+      )
+    );
+    if (officerIds.length > 0) {
+      const { data: officers } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", officerIds);
+      const byId = new Map(
+        (officers || []).map((o) => [o.id, o.full_name as string])
+      );
+      const agg = new Map<
+        string,
+        { deployed: number; activeCount: number; pipelineCount: number }
+      >();
+      for (const l of allLoans) {
+        if (!l.loan_officer_id) continue;
+        const entry =
+          agg.get(l.loan_officer_id) || {
+            deployed: 0,
+            activeCount: 0,
+            pipelineCount: 0,
+          };
+        if (["funded", "active"].includes(l.status)) {
+          entry.activeCount += 1;
+          entry.deployed += Number(l.current_principal);
+        }
+        if (
+          ["lead", "application", "underwriting", "approved"].includes(l.status)
+        ) {
+          entry.pipelineCount += 1;
+        }
+        agg.set(l.loan_officer_id, entry);
+      }
+      officerLeaderboard = Array.from(agg.entries())
+        .map(([id, v]) => ({
+          name: byId.get(id) || "Unknown",
+          ...v,
+        }))
+        .sort((a, b) => b.deployed - a.deployed);
+    }
+  }
+
   // Insurance attention = active loans whose insurance is missing, expired,
   // or expiring within 30 days
   const insuranceAttention = activeLoans.filter((l) => {
@@ -368,6 +425,35 @@ export default async function AdminDashboard({
             };
           })}
         />
+      )}
+
+      {officerLeaderboard && officerLeaderboard.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">
+              Loan Officers
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {officerLeaderboard.map((o) => (
+                <div
+                  key={o.name}
+                  className="flex items-center justify-between border-b last:border-0 pb-2 last:pb-0 text-sm"
+                >
+                  <span className="font-medium">{o.name}</span>
+                  <div className="flex items-center gap-6 text-xs text-muted-foreground">
+                    <span>{o.pipelineCount} in pipeline</span>
+                    <span>{o.activeCount} active</span>
+                    <span className="font-semibold text-foreground">
+                      {formatCurrency(o.deployed)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <Card>

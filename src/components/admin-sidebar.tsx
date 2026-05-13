@@ -32,10 +32,10 @@ export function AdminSidebar({ profile, isOpen, onClose }: AdminSidebarProps) {
       )}
     >
       {/* Logo block */}
-      <div className="flex items-center gap-3 px-4 pb-4 pt-4">
-        <Link href="/admin" className="flex min-w-0 flex-col gap-0.5">
-          <Wordmark height={20} className="text-foreground" />
-          <div className="pl-[1px] text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+      <div className="flex items-center gap-3 px-4 pb-5 pt-5">
+        <Link href="/admin" className="flex min-w-0 flex-col gap-1">
+          <Wordmark height={34} className="text-foreground" />
+          <div className="pl-[2px] text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
             Hard Money Lending
           </div>
         </Link>

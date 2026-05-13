@@ -5,11 +5,13 @@ import { getSupabasePublicKey, getSupabaseUrl } from "@/lib/supabase/env";
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
-  const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
-  const isPortalRoute = request.nextUrl.pathname.startsWith("/portal");
-  const isInvestorRoute = request.nextUrl.pathname.startsWith("/investor");
-  const isDocumentsRoute = request.nextUrl.pathname.startsWith("/documents");
-  const isLoginRoute = request.nextUrl.pathname === "/login";
+  const pathname = request.nextUrl.pathname;
+  const isAdminRoute = pathname.startsWith("/admin");
+  const isPortalRoute = pathname.startsWith("/portal");
+  const isInvestorRoute = pathname.startsWith("/investor");
+  const isDocumentsRoute = pathname.startsWith("/documents");
+  const isLoginRoute = pathname === "/login";
+  const isMfaPage = pathname.startsWith("/admin/security/mfa");
   const isProtected =
     isAdminRoute || isPortalRoute || isInvestorRoute || isDocumentsRoute;
 
@@ -66,6 +68,27 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/admin";
     return NextResponse.redirect(url);
+  }
+
+  // MFA gate on /admin — if org_settings.require_mfa_for_staff is on and the
+  // session is aal1, redirect to /admin/security/mfa for enrollment/challenge.
+  // The MFA page itself is skipped to avoid a loop.
+  if (user && isAdminRoute && !isMfaPage) {
+    const { data: settings } = await supabase
+      .from("org_settings")
+      .select("require_mfa_for_staff")
+      .eq("id", 1)
+      .single();
+    if (settings?.require_mfa_for_staff) {
+      const { data: aal } =
+        await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aal?.currentLevel !== "aal2") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/admin/security/mfa";
+        url.searchParams.set("next", pathname);
+        return NextResponse.redirect(url);
+      }
+    }
   }
 
   return supabaseResponse;

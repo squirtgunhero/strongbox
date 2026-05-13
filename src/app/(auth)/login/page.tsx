@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-
+import { AlertCircle } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -33,7 +33,6 @@ export default function LoginPage() {
       return;
     }
 
-    // Route by role
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
@@ -52,53 +51,83 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">StrongBox</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Hard Money Lending Platform
-          </p>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign in"}
-            </Button>
-            <div className="text-center text-xs">
-              <a
-                href="/forgot-password"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                Forgot password?
-              </a>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-col gap-1.5">
+        <h1 className="text-[22px] font-semibold tracking-[-0.018em] leading-[1.2]">
+          Sign in
+        </h1>
+        <p className="text-[13px] text-muted-foreground">
+          Access your lending book and servicing queue.
+        </p>
+      </header>
+
+      <form onSubmit={handleLogin} className="flex flex-col gap-3.5">
+        <div className="flex flex-col gap-1.5">
+          <Label
+            htmlFor="email"
+            className="text-[11.5px] font-medium uppercase tracking-[0.05em] text-muted-foreground"
+          >
+            Email
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@firm.com"
+            autoComplete="email"
+            autoFocus
+            required
+            className="h-9 rounded-md text-[13.5px]"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-baseline justify-between">
+            <Label
+              htmlFor="password"
+              className="text-[11.5px] font-medium uppercase tracking-[0.05em] text-muted-foreground"
+            >
+              Password
+            </Label>
+            <Link
+              href="/forgot-password"
+              className="text-[11.5px] text-muted-foreground hover:text-foreground"
+            >
+              Forgot?
+            </Link>
+          </div>
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+            className="h-9 rounded-md text-[13.5px]"
+          />
+        </div>
+
+        {error && (
+          <div className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-[12.5px] text-primary">
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <Button
+          type="submit"
+          disabled={loading || !email || !password}
+          className="mt-1 h-10 rounded-md text-[13.5px] font-medium"
+        >
+          {loading ? "Signing in…" : "Sign in"}
+        </Button>
+      </form>
+
+      <div className="border-t pt-4 text-center text-[11.5px] text-muted-foreground">
+        Don&apos;t have an account?{" "}
+        <span className="text-foreground">Contact your administrator</span>
+      </div>
     </div>
   );
 }

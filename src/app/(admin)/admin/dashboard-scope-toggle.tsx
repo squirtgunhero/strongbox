@@ -18,12 +18,12 @@ export function DashboardScopeToggle({
     explicitScope === "mine" || (explicitScope === null && defaultMine);
 
   return (
-    <div className="inline-flex gap-1 rounded-xl border bg-card p-1 text-[13px] shadow-[var(--shadow-card)]">
+    <div className="inline-flex gap-0.5 rounded-lg border bg-card p-[2px] text-[12px]">
       <Link
         href="?scope=mine"
-        className={`rounded-lg px-3 py-1.5 font-semibold transition-colors ${
+        className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
           isMine
-            ? "bg-muted text-foreground"
+            ? "bg-[color:var(--bg-2)] text-foreground"
             : "text-muted-foreground hover:text-foreground"
         }`}
       >
@@ -31,9 +31,9 @@ export function DashboardScopeToggle({
       </Link>
       <Link
         href="?scope=all"
-        className={`rounded-lg px-3 py-1.5 font-semibold transition-colors ${
+        className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
           !isMine
-            ? "bg-muted text-foreground"
+            ? "bg-[color:var(--bg-2)] text-foreground"
             : "text-muted-foreground hover:text-foreground"
         }`}
       >

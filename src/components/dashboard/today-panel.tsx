@@ -1,6 +1,6 @@
 import Link from "next/link";
+import { ArrowRight, ChevronRight, type LucideIcon } from "lucide-react";
 import {
-  ArrowRight,
   CalendarClock,
   CheckCircle2,
   CircleDollarSign,
@@ -9,7 +9,6 @@ import {
   Hammer,
   MessagesSquare,
   ShieldAlert,
-  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,9 +18,7 @@ export interface TodayRow {
   count: number;
   detail?: string;
   href: string;
-  /** Visual priority: "high" rows get the red accent treatment. */
   tone?: "high" | "med" | "low";
-  /** Icon family hint (falls back to a sensible default per id). */
   iconKind?:
     | "docs"
     | "approvals"
@@ -31,11 +28,6 @@ export interface TodayRow {
     | "draws"
     | "review"
     | "maturity";
-}
-
-interface TodayPanelProps {
-  rows: TodayRow[];
-  emptyMessage?: string;
 }
 
 const ICON_MAP: Record<NonNullable<TodayRow["iconKind"]>, LucideIcon> = {
@@ -50,11 +42,16 @@ const ICON_MAP: Record<NonNullable<TodayRow["iconKind"]>, LucideIcon> = {
 };
 
 /**
- * Today — single consolidated panel that replaces the previous
- * activity-feed + action-center + maturity-watch trio. One scannable list of
- * what needs operator attention right now, sorted by priority.
+ * Today — consolidated attention panel. Each row has a 2px left-edge
+ * priority stripe (red=high, amber=med, none=low). Sorted by tone+count.
  */
-export function TodayPanel({ rows, emptyMessage }: TodayPanelProps) {
+export function TodayPanel({
+  rows,
+  emptyMessage,
+}: {
+  rows: TodayRow[];
+  emptyMessage?: string;
+}) {
   const sorted = [...rows].sort((a, b) => {
     const order = { high: 0, med: 1, low: 2 } as const;
     return (
@@ -64,27 +61,28 @@ export function TodayPanel({ rows, emptyMessage }: TodayPanelProps) {
   });
 
   return (
-    <div className="flex min-w-0 flex-col rounded-2xl border bg-card shadow-[var(--shadow-card)]">
-      <div className="flex items-center justify-between border-b px-5 py-4">
+    <div className="flex min-w-0 flex-col rounded-xl border bg-card shadow-[var(--shadow-card)]">
+      <div className="flex items-center justify-between border-b px-4 py-3.5">
         <div>
-          <div className="text-[15px] font-semibold tracking-[-0.01em]">Today</div>
-          <div className="mt-0.5 text-[12.5px] text-muted-foreground">
+          <div className="text-[14px] font-semibold tracking-[-0.01em]">
+            Today
+          </div>
+          <div className="mt-0.5 text-[11.5px] text-muted-foreground">
             What needs your attention
           </div>
         </div>
         <Link
           href="/admin/notifications"
-          className="inline-flex items-center gap-1 text-[12.5px] font-medium text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1 text-[12px] font-medium text-muted-foreground hover:text-foreground"
         >
-          Inbox
-          <ArrowRight className="h-3 w-3" />
+          Inbox <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
 
       {sorted.length === 0 ? (
         <div className="px-5 py-10 text-center">
           <div className="text-[13.5px] font-medium">All clear</div>
-          <p className="mt-1 text-[12.5px] text-muted-foreground">
+          <p className="mt-1 text-[12px] text-muted-foreground">
             {emptyMessage ?? "Nothing urgent right now."}
           </p>
         </div>
@@ -94,14 +92,23 @@ export function TodayPanel({ rows, emptyMessage }: TodayPanelProps) {
             const Icon = ICON_MAP[row.iconKind ?? "updates"] ?? ICON_MAP.updates;
             const tone = row.tone ?? "low";
             return (
-              <li key={row.id}>
+              <li key={row.id} className="relative">
+                <span
+                  aria-hidden
+                  className={cn(
+                    "absolute inset-y-0 left-0 w-[2px]",
+                    tone === "high" && "bg-primary",
+                    tone === "med" && "bg-[color:var(--status-warning)]",
+                    tone === "low" && "bg-transparent"
+                  )}
+                />
                 <Link
                   href={row.href}
-                  className="group grid grid-cols-[28px_1fr_auto_auto] items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/30"
+                  className="group grid grid-cols-[24px_1fr_auto_12px] items-center gap-2.5 px-4 py-2.5 transition-colors hover:bg-muted/40"
                 >
                   <span
                     className={cn(
-                      "grid h-7 w-7 place-items-center rounded-lg",
+                      "grid h-6 w-6 place-items-center rounded-md",
                       tone === "high" && "bg-primary/10 text-primary",
                       tone === "med" &&
                         "bg-[color:var(--status-warning-bg)] text-[color:var(--status-warning)]",
@@ -111,24 +118,27 @@ export function TodayPanel({ rows, emptyMessage }: TodayPanelProps) {
                     <Icon className="h-3.5 w-3.5" />
                   </span>
                   <div className="min-w-0">
-                    <div className="text-[13px] font-medium text-foreground">
+                    <div className="text-[12.5px] font-medium leading-tight text-foreground">
                       {row.label}
                     </div>
                     {row.detail && (
-                      <div className="truncate text-[12px] text-muted-foreground">
+                      <div className="mono mt-0.5 truncate text-[11px] text-muted-foreground">
                         {row.detail}
                       </div>
                     )}
                   </div>
                   <span
                     className={cn(
-                      "tabular rounded-md px-1.5 text-[12px] font-semibold",
-                      row.count > 0 ? "text-foreground" : "text-muted-foreground/60"
+                      "tabular rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                      tone === "high" && "bg-primary/10 text-primary",
+                      tone === "med" &&
+                        "bg-[color:var(--status-warning-bg)] text-[color:var(--status-warning)]",
+                      tone === "low" && "bg-muted text-foreground/80"
                     )}
                   >
                     {row.count}
                   </span>
-                  <ArrowRight className="h-3 w-3 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" />
+                  <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
                 </Link>
               </li>
             );

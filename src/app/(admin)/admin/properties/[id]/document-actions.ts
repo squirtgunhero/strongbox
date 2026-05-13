@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { validateUpload } from "@/lib/uploads/validate";
 
 export async function uploadPropertyDocument(
   propertyId: string,
@@ -17,6 +18,8 @@ export async function uploadPropertyDocument(
   const category = (formData.get("category") as string) || "other";
   if (!file) throw new Error("No file provided");
   if (file.size > 25 * 1024 * 1024) throw new Error("File exceeds 25MB limit");
+  const check = await validateUpload(file);
+  if (!check.ok) throw new Error(check.reason || "Rejected upload");
 
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
   const storagePath = `property/${propertyId}/${Date.now()}_${safeName}`;

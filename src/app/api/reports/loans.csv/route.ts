@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       is_business_purpose,
       is_defaulted,
       property:properties(address_street, address_city, address_state, address_zip),
-      loan_borrowers(is_primary, borrower:borrowers(*))
+      loan_borrowers(is_primary, borrower:borrowers(borrower_type, first_name, last_name, entity_name))
     `);
 
   const status = sp.get("status");

@@ -7,6 +7,7 @@ import {
   validateDrawAmount,
   requiresDualApproval,
 } from "@/lib/calculations/holdback";
+import { getDualApprovalThreshold } from "@/lib/org-settings";
 import { queueNotification } from "@/lib/notifications";
 
 export async function requestDraw(loanId: string, formData: FormData) {
@@ -184,7 +185,10 @@ export async function approveDraw(drawId: string, approvedAmount: number) {
     .select("*", { count: "exact", head: true })
     .eq("draw_id", drawId);
 
-  const approvalsNeeded = requiresDualApproval(approvedAmount) ? 2 : 1;
+  // Load the configured threshold rather than relying on a hardcoded constant
+  // so changes from the settings page take effect immediately.
+  const threshold = await getDualApprovalThreshold(supabase);
+  const approvalsNeeded = requiresDualApproval(approvedAmount, threshold) ? 2 : 1;
 
   if ((count || 0) >= approvalsNeeded) {
     await supabase

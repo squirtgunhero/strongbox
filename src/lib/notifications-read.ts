@@ -3,6 +3,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
+// These helpers call SECURITY DEFINER RPCs (migration 026) rather than running
+// raw UPDATE statements against the notifications table. Direct UPDATE is
+// revoked from the authenticated role to prevent recipients from rewriting
+// their own notification body / status / provider_message_id.
+
 export async function markNotificationRead(notificationId: string) {
   const supabase = await createClient();
   const {
@@ -10,11 +15,10 @@ export async function markNotificationRead(notificationId: string) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  await supabase
-    .from("notifications")
-    .update({ read_at: new Date().toISOString() })
-    .eq("id", notificationId)
-    .eq("recipient_user_id", user.id);
+  const { error } = await supabase.rpc("mark_notification_read", {
+    notification_id: notificationId,
+  });
+  if (error) throw new Error(error.message);
 
   revalidatePath("/portal/notifications");
   revalidatePath("/portal");
@@ -29,11 +33,8 @@ export async function markAllNotificationsRead() {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  await supabase
-    .from("notifications")
-    .update({ read_at: new Date().toISOString() })
-    .eq("recipient_user_id", user.id)
-    .is("read_at", null);
+  const { error } = await supabase.rpc("mark_all_notifications_read");
+  if (error) throw new Error(error.message);
 
   revalidatePath("/portal/notifications");
   revalidatePath("/portal");

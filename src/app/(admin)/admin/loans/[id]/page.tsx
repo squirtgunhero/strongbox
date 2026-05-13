@@ -28,6 +28,7 @@ import { NotesThread } from "./notes-thread";
 import { DocumentsSection } from "./documents-section";
 import { PayoffCalculator } from "./payoff-calculator";
 import { DrawsSection } from "./draws-section";
+import { getDualApprovalThreshold } from "@/lib/org-settings";
 import { remainingHoldback } from "@/lib/calculations/holdback";
 import { DocumentActionsBar } from "./document-actions-bar";
 import { SignaturesSection } from "./signatures-section";
@@ -344,6 +345,7 @@ export default async function LoanDetailPage({
           rehabBudget={rehabBudget}
           remainingHoldback={holdbackLeft}
           currentUserId={user.id}
+          dualApprovalThreshold={await getDualApprovalThreshold(supabase)}
         />
       )}
 

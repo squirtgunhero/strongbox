@@ -31,10 +31,7 @@ import {
   rejectDraw,
 } from "@/lib/draws";
 import { X } from "lucide-react";
-import {
-  requiresDualApproval,
-  DUAL_APPROVAL_THRESHOLD,
-} from "@/lib/calculations/holdback";
+import { requiresDualApproval } from "@/lib/calculations/holdback";
 
 interface Draw {
   id: string;
@@ -65,12 +62,15 @@ export function DrawsSection({
   rehabBudget,
   remainingHoldback,
   currentUserId,
+  dualApprovalThreshold,
 }: {
   loanId: string;
   draws: Draw[];
   rehabBudget: number;
   remainingHoldback: number;
   currentUserId: string;
+  /** Configured `org_settings.dual_approval_threshold`. */
+  dualApprovalThreshold: number;
 }) {
   return (
     <Card>
@@ -102,7 +102,7 @@ export function DrawsSection({
             <TableBody>
               {draws.map((draw) => {
                 const amt = draw.approved_amount ?? draw.requested_amount;
-                const needsDual = requiresDualApproval(amt);
+                const needsDual = requiresDualApproval(amt, dualApprovalThreshold);
                 const approvalCount = draw.approvals?.length || 0;
                 const userHasApproved = draw.approvals?.some(
                   (a) => a.approver_id === currentUserId
@@ -137,6 +137,7 @@ export function DrawsSection({
                       <DrawActions
                         draw={draw}
                         userHasApproved={userHasApproved || false}
+                        dualApprovalThreshold={dualApprovalThreshold}
                       />
                     </TableCell>
                   </TableRow>
@@ -153,9 +154,11 @@ export function DrawsSection({
 function DrawActions({
   draw,
   userHasApproved,
+  dualApprovalThreshold,
 }: {
   draw: Draw;
   userHasApproved: boolean;
+  dualApprovalThreshold: number;
 }) {
   if (draw.status === "requested") {
     return (
@@ -172,6 +175,7 @@ function DrawActions({
           drawId={draw.id}
           defaultAmount={draw.requested_amount}
           alreadyApproved={userHasApproved}
+          dualApprovalThreshold={dualApprovalThreshold}
         />
         <RejectButton drawId={draw.id} />
       </div>
@@ -294,10 +298,12 @@ function ApproveButton({
   drawId,
   defaultAmount,
   alreadyApproved,
+  dualApprovalThreshold,
 }: {
   drawId: string;
   defaultAmount: number;
   alreadyApproved: boolean;
+  dualApprovalThreshold: number;
 }) {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState(String(defaultAmount));
@@ -321,7 +327,10 @@ function ApproveButton({
     return <span className="text-xs text-muted-foreground">You approved</span>;
   }
 
-  const needsDual = requiresDualApproval(parseFloat(amount) || 0);
+  const needsDual = requiresDualApproval(
+    parseFloat(amount) || 0,
+    dualApprovalThreshold
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -341,7 +350,7 @@ function ApproveButton({
           />
           {needsDual && (
             <p className="text-xs text-muted-foreground">
-              Amounts over {formatCurrency(DUAL_APPROVAL_THRESHOLD)} require a
+              Amounts over {formatCurrency(dualApprovalThreshold)} require a
               second approver.
             </p>
           )}

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { borrowerDisplayName } from "@/lib/format";
+import { requireStaff } from "@/lib/auth/require-staff";
 
 function getAppBaseUrl() {
   const configured =
@@ -25,11 +26,11 @@ function getAppBaseUrl() {
 }
 
 export async function inviteBorrower(borrowerId: string) {
+  // SECURITY: must be staff. Without this guard any authenticated user
+  // (including borrowers themselves) could link arbitrary auth identities to
+  // any borrower record and inherit access to that borrower's PII.
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const admin = createAdminClient();
   if (!admin) {
@@ -80,7 +81,7 @@ export async function inviteBorrower(borrowerId: string) {
     record_id: borrowerId,
     action: "update",
     new_values: { invited_email: borrower.email, linked_user_id: invited.user.id },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath(`/admin/borrowers/${borrowerId}`);
@@ -88,11 +89,9 @@ export async function inviteBorrower(borrowerId: string) {
 }
 
 export async function inviteInvestor(investorId: string) {
+  // SECURITY: see inviteBorrower — staff only.
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const admin = createAdminClient();
   if (!admin) {
@@ -142,7 +141,7 @@ export async function inviteInvestor(investorId: string) {
     record_id: investorId,
     action: "update",
     new_values: { invited_email: investor.email, linked_user_id: invited.user.id },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath(`/admin/investors/${investorId}`);

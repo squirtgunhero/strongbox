@@ -1,6 +1,7 @@
-// Dual-approval threshold for disbursements per CLAUDE.md.
-// Configurable per-tenant later; hardcoded $10,000 for now.
-export const DUAL_APPROVAL_THRESHOLD = 10_000;
+// Fallback dual-approval threshold used only if `org_settings.dual_approval_threshold`
+// cannot be loaded. The configured value in org_settings is the source of truth
+// and is enforced server-side in src/lib/draws.ts before promoting a draw to approved.
+export const DEFAULT_DUAL_APPROVAL_THRESHOLD = 10_000;
 
 interface DrawForHoldback {
   status: string;
@@ -28,6 +29,11 @@ export function validateDrawAmount(amount: number, remaining: number): void {
   }
 }
 
-export function requiresDualApproval(amount: number): boolean {
-  return amount > DUAL_APPROVAL_THRESHOLD;
+/**
+ * Pure check: does the draw amount exceed the dual-approval threshold?
+ * Use `requiresDualApprovalFromOrg` instead in server actions so the
+ * configured threshold takes effect.
+ */
+export function requiresDualApproval(amount: number, threshold: number): boolean {
+  return amount > threshold;
 }

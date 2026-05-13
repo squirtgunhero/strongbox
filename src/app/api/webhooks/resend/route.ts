@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
-import { getSupabasePublicKey, getSupabaseUrl } from "@/lib/supabase/env";
+import { getSupabaseUrl } from "@/lib/supabase/env";
 
 /**
  * Resend webhook events.
@@ -39,12 +39,14 @@ export async function POST(request: NextRequest) {
     .split(" ")
     .map((s) => s.split(",")[1])
     .filter(Boolean);
+  // Svix signatures are base64-encoded. Compare as bytes to avoid utf-8 quirks
+  // and length-mismatch crashes from timingSafeEqual.
+  const expectedBytes = Buffer.from(expected, "base64");
   const matches = validSignatures.some((sig) => {
     try {
-      return crypto.timingSafeEqual(
-        Buffer.from(expected),
-        Buffer.from(sig)
-      );
+      const sigBytes = Buffer.from(sig, "base64");
+      if (sigBytes.length !== expectedBytes.length) return false;
+      return crypto.timingSafeEqual(expectedBytes, sigBytes);
     } catch {
       return false;
     }
@@ -65,15 +67,21 @@ export async function POST(request: NextRequest) {
     return new Response("Acknowledged (no message id)", { status: 200 });
   }
 
+  // The webhook MUST run with service-role to bypass RLS on notifications.
+  // Falling back to the anon key (the previous behavior) caused every update
+  // to fail RLS while still returning 200, leaving delivery/bounce status
+  // silently missing from the database.
   const supabaseUrl = getSupabaseUrl();
-  const fallbackPublicKey = getSupabasePublicKey();
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || fallbackPublicKey;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !supabaseKey) {
-    return new Response("Supabase credentials not configured", { status: 500 });
+    console.error(
+      "[resend-webhook] missing SUPABASE_SERVICE_ROLE_KEY — refusing to ack so Resend retries"
+    );
+    return new Response("Service-role key not configured", { status: 500 });
   }
 
-  const supabase = createServerClient(supabaseUrl, supabaseKey, {
-    cookies: { getAll: () => [], setAll: () => {} },
+  const supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
   });
 
   const now = new Date().toISOString();
@@ -103,10 +111,16 @@ export async function POST(request: NextRequest) {
       return new Response("OK", { status: 200 });
   }
 
-  await supabase
+  const { error: updateError } = await supabase
     .from("notifications")
     .update(update)
     .eq("provider_message_id", messageId);
+
+  if (updateError) {
+    console.error("[resend-webhook] update failed", updateError);
+    // Return 500 so Resend retries — silent failures hide real delivery issues.
+    return new Response("Failed to update notification", { status: 500 });
+  }
 
   return new Response("OK", { status: 200 });
 }

@@ -3,7 +3,7 @@ import {
   remainingHoldback,
   validateDrawAmount,
   requiresDualApproval,
-  DUAL_APPROVAL_THRESHOLD,
+  DEFAULT_DUAL_APPROVAL_THRESHOLD,
 } from "./holdback";
 
 describe("remainingHoldback", () => {
@@ -75,13 +75,23 @@ describe("validateDrawAmount", () => {
 });
 
 describe("requiresDualApproval", () => {
-  it(`amounts > $${DUAL_APPROVAL_THRESHOLD} require dual approval`, () => {
-    expect(requiresDualApproval(DUAL_APPROVAL_THRESHOLD + 0.01)).toBe(true);
-    expect(requiresDualApproval(50_000)).toBe(true);
+  const T = DEFAULT_DUAL_APPROVAL_THRESHOLD;
+
+  it(`amounts > threshold require dual approval`, () => {
+    expect(requiresDualApproval(T + 0.01, T)).toBe(true);
+    expect(requiresDualApproval(50_000, T)).toBe(true);
   });
 
-  it(`amounts ≤ $${DUAL_APPROVAL_THRESHOLD} do not`, () => {
-    expect(requiresDualApproval(DUAL_APPROVAL_THRESHOLD)).toBe(false);
-    expect(requiresDualApproval(5_000)).toBe(false);
+  it(`amounts ≤ threshold do not`, () => {
+    expect(requiresDualApproval(T, T)).toBe(false);
+    expect(requiresDualApproval(5_000, T)).toBe(false);
+  });
+
+  it("honors a custom threshold from org_settings", () => {
+    // A compliance-driven lowering of the threshold to $5k must take effect.
+    expect(requiresDualApproval(7_500, 5_000)).toBe(true);
+    expect(requiresDualApproval(5_000, 5_000)).toBe(false);
+    // And raising it should also be respected.
+    expect(requiresDualApproval(20_000, 25_000)).toBe(false);
   });
 });

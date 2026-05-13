@@ -6,6 +6,7 @@ import { signOut } from "@/app/(auth)/login/actions";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Wordmark } from "@/components/brand/wordmark";
 
 export default async function PortalLayout({
   children,
@@ -42,12 +43,9 @@ export default async function PortalLayout({
     <div className="no-serif flex min-h-screen flex-col">
       <header className="border-b">
         <div className="mx-auto flex h-16 max-w-[1180px] items-center justify-between px-6">
-          <Link href="/portal" className="flex items-center gap-2.5">
-            <span className="mono grid h-8 w-8 place-items-center rounded-md bg-foreground text-[13px] font-semibold text-background">
-              S
-            </span>
-            <span className="text-[15px] font-semibold tracking-tight">StrongBox</span>
-            <span className="ml-1 text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground">
+          <Link href="/portal" className="flex items-center gap-3">
+            <Wordmark height={22} className="text-foreground" />
+            <span className="border-l pl-3 text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground">
               Borrower portal
             </span>
           </Link>

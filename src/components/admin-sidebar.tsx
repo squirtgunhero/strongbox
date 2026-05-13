@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { adminNavSections } from "@/components/admin-nav";
+import { Wordmark } from "@/components/brand/wordmark";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -31,18 +32,13 @@ export function AdminSidebar({ profile, isOpen, onClose }: AdminSidebarProps) {
       )}
     >
       {/* Logo block */}
-      <div className="flex items-center gap-3 px-4 pb-4 pt-4.5">
-        <div className="relative grid h-7 w-7 place-items-center rounded-[7px] bg-foreground">
-          <span className="mono text-[12px] font-semibold text-background">S</span>
-        </div>
-        <div className="leading-tight">
-          <div className="text-[15px] font-semibold tracking-tight text-foreground">
-            StrongBox
-          </div>
-          <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+      <div className="flex items-center gap-3 px-4 pb-4 pt-4">
+        <Link href="/admin" className="flex min-w-0 flex-col gap-0.5">
+          <Wordmark height={20} className="text-foreground" />
+          <div className="pl-[1px] text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
             Hard Money Lending
           </div>
-        </div>
+        </Link>
         <Button
           variant="ghost"
           size="icon-sm"

@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Landmark, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { signOut } from "@/app/(auth)/login/actions";
 import { Button } from "@/components/ui/button";
 import { InvestorNav } from "@/components/investor-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Wordmark } from "@/components/brand/wordmark";
 
 export default async function InvestorLayout({
   children,
@@ -43,10 +44,11 @@ export default async function InvestorLayout({
     <div className="min-h-screen flex flex-col">
       <header className="border-b">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link href="/investor" className="flex items-center gap-2">
-            <Landmark className="h-5 w-5" />
-            <span className="font-bold">StrongBox</span>
-            <span className="text-xs text-muted-foreground ml-2">Investor</span>
+          <Link href="/investor" className="flex items-center gap-3">
+            <Wordmark height={20} className="text-foreground" />
+            <span className="border-l pl-3 text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground">
+              Investor
+            </span>
           </Link>
           <div className="flex items-center gap-4">
             <InvestorNav unreadCount={unread || 0} />

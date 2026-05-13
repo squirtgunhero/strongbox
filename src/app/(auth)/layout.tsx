@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Wordmark } from "@/components/brand/wordmark";
 
 export const dynamic = "force-dynamic";
 
@@ -16,16 +17,8 @@ export default function AuthLayout({
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <header className="flex items-center justify-between px-6 py-5">
-        <Link href="/" className="inline-flex items-center gap-2 group">
-          <span
-            aria-hidden
-            className="grid h-7 w-7 place-items-center rounded-md bg-foreground text-background text-[13px] font-semibold leading-none tracking-[-0.02em]"
-          >
-            S
-          </span>
-          <span className="text-[14px] font-semibold tracking-[-0.01em]">
-            StrongBox
-          </span>
+        <Link href="/" className="inline-flex items-center group">
+          <Wordmark height={22} className="text-foreground" />
         </Link>
         <Link
           href="mailto:support@strongbox.com"

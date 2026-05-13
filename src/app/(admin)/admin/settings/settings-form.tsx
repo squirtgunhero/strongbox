@@ -15,6 +15,7 @@ interface Settings {
   max_ltc: number;
   max_borrower_concentration: number;
   max_state_concentration: number;
+  require_mfa_for_staff?: boolean;
 }
 
 export function SettingsForm({ settings }: { settings: Settings | null }) {
@@ -139,6 +140,33 @@ export function SettingsForm({ settings }: { settings: Settings | null }) {
             }
           />
         </div>
+      </div>
+
+      <div className="rounded-lg border bg-muted/30 p-4">
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            name="require_mfa_for_staff"
+            defaultChecked={settings?.require_mfa_for_staff || false}
+            className="mt-0.5 h-4 w-4 accent-foreground"
+          />
+          <div className="flex-1">
+            <div className="text-[13px] font-medium">
+              Require MFA for all staff sessions
+            </div>
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              Admins and loan officers without an AAL2 session are redirected
+              to enroll a TOTP factor before they can access /admin/* or
+              perform any privileged action. Make sure at least one admin has
+              enrolled MFA before enabling — otherwise you&apos;ll lock
+              everyone out. Each user manages their factor at
+              <code className="ml-1 rounded bg-background px-1.5 py-0.5 text-[11px]">
+                /admin/security/mfa
+              </code>
+              .
+            </p>
+          </div>
+        </label>
       </div>
 
       <div className="flex items-center gap-3">

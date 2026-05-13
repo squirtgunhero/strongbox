@@ -153,24 +153,51 @@ workflow we follow.
 
 See `hard-money-lending-platform.md` for the full product spec.
 
+## Integrations
+
+Each external integration ships as an adapter behind an interface, so
+switching providers means writing a single class. Adapters check their env
+vars on construction and resolve to a no-op stub when keys are missing —
+the StrongBox UI keeps working, it just doesn't dispatch external calls.
+
+| Integration | File | Provider | Env vars |
+| -- | -- | -- | -- |
+| E-signature | `src/lib/esign/` | DocuSign (JWT grant) | `DOCUSIGN_BASE_URL`, `DOCUSIGN_ACCOUNT_ID`, `DOCUSIGN_INTEGRATION_KEY`, `DOCUSIGN_USER_ID`, `DOCUSIGN_PRIVATE_KEY`, `DOCUSIGN_WEBHOOK_HMAC_KEY` |
+| ACH payments | `src/lib/payments/` | Stripe (PaymentIntents, us_bank_account) | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
+| Property data | `src/lib/property/` | RentCast (AVM + rent estimate) | `RENTCAST_API_KEY` |
+| Credit pull | `src/lib/credit/` | None wired — interface only | (see below) |
+
+Webhooks:
+
+- DocuSign Connect → `/api/webhooks/docusign` (HMAC verified)
+- Stripe → `/api/webhooks/stripe` (signature verified, 5-min replay window)
+- Resend → `/api/webhooks/resend` (Svix HMAC verified)
+
+To enable an integration, fill in its env vars and redeploy. No code change
+needed — the runtime check flips from stub to live on the next request.
+
+Concentration analysis (`src/lib/calculations/concentration.ts`) runs on
+every admin dashboard load and surfaces a banner when one borrower or one
+state exceeds the configured threshold in `org_settings`.
+
+MFA is enforced when `org_settings.require_mfa_for_staff = true`. Staff
+without an AAL2 session are redirected to `/admin/security/mfa` for TOTP
+enrollment or challenge. Toggle from `/admin/settings`. Enroll one admin
+first or you'll lock yourself out.
+
 ## Known gaps (pre-customer testing)
 
-The following integrations are stubbed or out of scope this iteration —
-disclose to anyone running a demo:
-
-- E-signature: state and audit tracked, but no DocuSeal / DocuSign envelope
-  is sent. UI is "manual tracking" only.
-- Money movement: no Stripe / Plaid / Dwolla. Payments are manual entry by
-  staff (`record-payment.tsx`). Borrowers submit ACH/wire **intents** that
-  staff verify.
-- Property valuation auto-pull (RentCast / Estated) is not wired.
-- Experian credit pull is not wired.
-- MFA is not enforced in app code — relies on Supabase auth-layer config.
-- Concentration thresholds are configurable in `/admin/settings`
-  (`max_borrower_concentration`, `max_state_concentration`) but no
-  dashboard banner or origination gate uses them yet — they are stored
-  metadata only.
-- App-level rate limiting only covers `/forgot-password` (per-email cooldown
-  backed by migration 027). Login itself relies on Supabase's built-in
-  auth throttle since the client SDK calls Supabase directly. A proxy-
-  through-server-action pattern would let us add app-side login throttling.
+- **Credit pull**: no bureau adapter shipped. The interface lives at
+  `src/lib/credit/`. Wiring Experian / Equifax / TransUnion requires a signed
+  credentials agreement and is a procurement step, not a code task.
+- **Document → PDF rendering for e-sign**: the DocuSign adapter currently
+  attaches a minimal placeholder PDF. Wire the existing HTML→PDF document
+  templates (`src/app/(documents)/*`) into the e-sign flow before sending
+  real envelopes.
+- **MFA recovery**: no admin-side "reset a user's MFA" flow yet. If a staff
+  member loses their authenticator, delete the row from `auth.mfa_factors`
+  via Supabase Studio.
+- **No e2e auth tests**: Playwright covers anonymous smoke (login renders,
+  /admin redirects, generic error on bad password). Authenticated flows
+  require seeding a test user — wire that into a `e2e/auth.setup.ts` per
+  Playwright's auth-storage-state pattern when you add the integrations.

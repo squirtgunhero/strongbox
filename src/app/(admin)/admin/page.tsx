@@ -12,6 +12,9 @@ import { TodayPanel, type TodayRow } from "@/components/dashboard/today-panel";
 import { MaturityLadder } from "@/components/dashboard/maturity-ladder";
 import { RecentlyFunded } from "@/components/dashboard/recently-funded";
 import { DashboardOnboarding } from "@/components/dashboard/dashboard-onboarding";
+import { ConcentrationBanner } from "@/components/dashboard/concentration-banner";
+import { analyzeConcentration } from "@/lib/calculations/concentration";
+import { borrowerDisplayName } from "@/lib/format";
 
 type ViewMode = "live" | "demo";
 
@@ -59,7 +62,8 @@ export default async function AdminDashboard({
 
   let loanQuery = supabase.from("loans").select(`
     *,
-    property:properties(address_street, address_city, address_state, as_is_value)
+    property:properties(address_street, address_city, address_state, as_is_value),
+    loan_borrowers(is_primary, borrower:borrowers(id, borrower_type, first_name, last_name, entity_name))
   `);
   if (isMine && user) loanQuery = loanQuery.eq("loan_officer_id", user.id);
 
@@ -106,6 +110,49 @@ export default async function AdminDashboard({
   const totalDeployed = activeLoans.reduce(
     (s, l) => s + Number(l.current_principal),
     0
+  );
+
+  // Load concentration thresholds + compute breach report. Quietly degrade
+  // to a "no breaches" report if settings are unreachable so the dashboard
+  // never crashes on this.
+  const { data: orgSettings } = await supabase
+    .from("org_settings")
+    .select("max_borrower_concentration, max_state_concentration")
+    .eq("id", 1)
+    .single();
+  const concentration = analyzeConcentration(
+    activeLoans.map((l) => {
+      const lb = (
+        l as unknown as {
+          loan_borrowers?: {
+            is_primary: boolean;
+            borrower: {
+              id: string;
+              borrower_type: string;
+              first_name: string | null;
+              last_name: string | null;
+              entity_name: string | null;
+            } | null;
+          }[];
+        }
+      ).loan_borrowers;
+      const primary = lb?.find((x) => x.is_primary) ?? lb?.[0];
+      const borrower = primary?.borrower;
+      return {
+        current_principal: Number(l.current_principal) || 0,
+        borrower_id: borrower?.id ?? "unknown",
+        borrower_label: borrower
+          ? borrowerDisplayName(borrower)
+          : "Unknown borrower",
+        state:
+          (l as unknown as { property: { address_state: string } | null })
+            .property?.address_state ?? "??",
+      };
+    }),
+    {
+      maxBorrower: Number(orgSettings?.max_borrower_concentration) || 0.2,
+      maxState: Number(orgSettings?.max_state_concentration) || 0.4,
+    }
   );
   const defaultedLoans = allLoans.filter((l) => l.status === "defaulted");
   const pipelineLoans = allLoans.filter((l) =>
@@ -594,6 +641,8 @@ export default async function AdminDashboard({
           </>
         }
       />
+
+      <ConcentrationBanner report={concentration} />
 
       <KpiStrip cells={kpis} />
 

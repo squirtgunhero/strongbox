@@ -8,6 +8,17 @@ export interface AuthenticatedCaller {
   email: string | null;
   role: AnyRole;
   fullName: string | null;
+  /** AAL2 = user has a verified MFA factor and used it for this session. */
+  aal: "aal1" | "aal2";
+  /** True iff the caller has at least one verified MFA factor enrolled. */
+  hasMfaEnrolled: boolean;
+}
+
+export class MfaRequiredError extends Error {
+  constructor(message = "Multi-factor authentication required") {
+    super(message);
+    this.name = "MfaRequiredError";
+  }
 }
 
 /**
@@ -33,33 +44,78 @@ export async function getCaller(): Promise<AuthenticatedCaller> {
     .single();
   if (error || !profile) throw new Error("Unauthorized: profile not found");
 
+  // Authenticator assurance level: aal2 means MFA-verified for this session.
+  // We don't fail open on errors — better to treat unknown as aal1 (no MFA).
+  const { data: aalData } =
+    await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  const aal: "aal1" | "aal2" =
+    aalData?.currentLevel === "aal2" ? "aal2" : "aal1";
+
+  // Whether they've enrolled at least one factor (separate from whether
+  // they've used it on this session). Used to render the "enroll now" CTA
+  // on the security page.
+  const { data: mfaCheck } = await supabase.rpc("user_has_verified_mfa", {
+    uid: user.id,
+  });
+
   return {
     userId: user.id,
     email: profile.email ?? user.email ?? null,
     role: profile.role as AnyRole,
     fullName: profile.full_name ?? null,
+    aal,
+    hasMfaEnrolled: Boolean(mfaCheck),
   };
 }
 
 /**
  * Require the caller to be staff (admin or loan_officer).
  * Returns the caller so the handler can audit `performed_by`.
+ *
+ * Also enforces MFA if `org_settings.require_mfa_for_staff` is on: callers
+ * with no aal2 session throw MfaRequiredError. UI catches this and redirects
+ * to /admin/security/mfa for enrollment / challenge.
  */
 export async function requireStaff(): Promise<AuthenticatedCaller> {
   const caller = await getCaller();
   if (caller.role !== "admin" && caller.role !== "loan_officer") {
     throw new Error("Forbidden: staff role required");
   }
+
+  const supabase = await createClient();
+  const { data: settings } = await supabase
+    .from("org_settings")
+    .select("require_mfa_for_staff")
+    .eq("id", 1)
+    .single();
+  if (settings?.require_mfa_for_staff && caller.aal !== "aal2") {
+    throw new MfaRequiredError(
+      caller.hasMfaEnrolled
+        ? "Complete MFA challenge to continue"
+        : "Enroll MFA before continuing"
+    );
+  }
+
   return caller;
 }
 
 /**
  * Require the caller to be a full admin (not just a loan officer).
+ * Same MFA enforcement as requireStaff.
  */
 export async function requireAdmin(): Promise<AuthenticatedCaller> {
   const caller = await getCaller();
   if (caller.role !== "admin") {
     throw new Error("Forbidden: admin role required");
+  }
+  const supabase = await createClient();
+  const { data: settings } = await supabase
+    .from("org_settings")
+    .select("require_mfa_for_staff")
+    .eq("id", 1)
+    .single();
+  if (settings?.require_mfa_for_staff && caller.aal !== "aal2") {
+    throw new MfaRequiredError();
   }
   return caller;
 }

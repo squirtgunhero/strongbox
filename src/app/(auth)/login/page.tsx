@@ -4,10 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { signInWithPassword } from "./actions";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -15,38 +15,23 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    // Login is proxied through a server action so we can rate-limit per email
+    // and per IP, and resolve the role-based redirect server-side.
+    const result = await signInWithPassword(email, password);
 
-    if (error) {
-      setError(error.message);
+    if (!result.ok) {
+      setError(result.error || "Sign in failed");
       setLoading(false);
       return;
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", data.user.id)
-      .single();
-
-    const dest =
-      profile?.role === "admin" || profile?.role === "loan_officer"
-        ? "/admin"
-        : profile?.role === "investor"
-          ? "/investor"
-          : "/portal";
-
-    router.push(dest);
+    router.push(result.redirectTo);
     router.refresh();
   }
 

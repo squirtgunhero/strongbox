@@ -3,6 +3,7 @@ import {
   dailyInterest,
   accruedInterest,
   perDiem,
+  accruedInterestWithDefault,
 } from "./interest";
 
 /**
@@ -94,5 +95,96 @@ describe("perDiem", () => {
       166.6667,
       4
     );
+  });
+});
+
+describe("accruedInterestWithDefault", () => {
+  // Hand-calc base: $500k × 12% / 360 = $166.6667/day (normal)
+  //                 $500k × 24% / 360 = $333.3333/day (default)
+  const P = 500_000;
+  const R = 0.12;
+  const DR = 0.24;
+
+  it("no default date → behaves like single-rate accruedInterest", () => {
+    // 30 days × $166.6667 = $5,000.00
+    expect(
+      accruedInterestWithDefault(P, R, "actual_360", "2026-03-01", "2026-03-31")
+    ).toBeCloseTo(5000, 2);
+  });
+
+  it("default date null → ignores defaultRate", () => {
+    expect(
+      accruedInterestWithDefault(P, R, "actual_360", "2026-03-01", "2026-03-31", {
+        defaultDate: null,
+        defaultRate: DR,
+      })
+    ).toBeCloseTo(5000, 2);
+  });
+
+  it("default rate null/zero → falls back to normal rate even with a default date", () => {
+    expect(
+      accruedInterestWithDefault(P, R, "actual_360", "2026-03-01", "2026-03-31", {
+        defaultDate: "2026-03-15",
+        defaultRate: null,
+      })
+    ).toBeCloseTo(5000, 2);
+  });
+
+  it("default precedes the window → entire period at default rate", () => {
+    // 30 days × $333.3333 = $10,000.00
+    expect(
+      accruedInterestWithDefault(P, R, "actual_360", "2026-03-01", "2026-03-31", {
+        defaultDate: "2026-01-15",
+        defaultRate: DR,
+      })
+    ).toBeCloseTo(10_000, 2);
+  });
+
+  it("default date is exactly fromDate → all days at default rate", () => {
+    expect(
+      accruedInterestWithDefault(P, R, "actual_360", "2026-03-01", "2026-03-31", {
+        defaultDate: "2026-03-01",
+        defaultRate: DR,
+      })
+    ).toBeCloseTo(10_000, 2);
+  });
+
+  it("default after the window ends → all days at normal rate", () => {
+    expect(
+      accruedInterestWithDefault(P, R, "actual_360", "2026-03-01", "2026-03-31", {
+        defaultDate: "2026-04-15",
+        defaultRate: DR,
+      })
+    ).toBeCloseTo(5000, 2);
+  });
+
+  it("splits at default date mid-period", () => {
+    // Default 2026-03-15 → first 14 days normal ($166.6667 × 14 = $2,333.33),
+    // remaining 16 days at default ($333.3333 × 16 = $5,333.33). Total ≈ $7,666.67
+    const got = accruedInterestWithDefault(
+      P,
+      R,
+      "actual_360",
+      "2026-03-01",
+      "2026-03-31",
+      { defaultDate: "2026-03-15", defaultRate: DR }
+    );
+    expect(got).toBeCloseTo(7666.6667, 2);
+  });
+
+  it("split-period math handles actual/365 too", () => {
+    // $1M × 10% / 365 = $273.97/day normal
+    // $1M × 24% / 365 = $657.53/day default
+    // Period 2026-06-01 → 2026-07-01 (30 days), default 2026-06-21
+    // 20 days × $273.973 + 10 days × $657.534 = $5,479.45 + $6,575.34 = $12,054.79
+    const got = accruedInterestWithDefault(
+      1_000_000,
+      0.10,
+      "actual_365",
+      "2026-06-01",
+      "2026-07-01",
+      { defaultDate: "2026-06-21", defaultRate: 0.24 }
+    );
+    expect(got).toBeCloseTo(12_054.79, 1);
   });
 });

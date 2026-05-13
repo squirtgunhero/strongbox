@@ -39,3 +39,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# macOS Finder / iCloud creates these when files are open in multiple editors.
+# They shadow the real files and break the Next.js build (we hit this in CI).
+*\ 2.ts
+*\ 2.tsx
+*\ 2.css
+*\ 2.json
+*\ 2.sql
+*\ 3.ts
+*\ 3.tsx
+*\ 3.css
+*\ 3.json
+*\ 3.sql

@@ -95,17 +95,26 @@ Cross-tenant access is enforced by RLS on every table. The non-negotiables
 ## Testing
 
 ```bash
-npm test             # vitest run — 64 tests on financial math
+npm test             # vitest run — 72 tests on financial math
 npm run test:watch   # watch mode
+SUPABASE_DB_URL=… npm run test:rls   # assertion-based RLS regression
 ```
 
 The math test suites cover interest accrual (actual/360 and actual/365),
-payment waterfall application, per-diem, payoff calculations, holdback
-draws, investor distributions, and reporting helpers.
+default-rate split-period interest, payment waterfall application,
+per-diem, payoff calculations, holdback draws, investor distributions,
+and reporting helpers.
 
-There is also an RLS test script at `db/tests/rls_test.sql` you can run
-against a project after applying migrations — it impersonates a borrower
-session and confirms cross-tenant SELECTs come back empty.
+The RLS regression test (`db/tests/rls_regression.sql`) impersonates two
+borrower sessions and asserts:
+
+- Each only sees their own loans (cross-tenant SELECT returns zero rows)
+- Neither can SELECT borrower PII columns
+- Neither can forge an audit_log row with a spoofed `performed_by`
+- Neither can directly UPDATE notifications
+
+The test wraps everything in a transaction and rolls back, so the database
+state is unchanged after a run.
 
 ## Build & deploy
 
@@ -157,3 +166,11 @@ disclose to anyone running a demo:
 - Property valuation auto-pull (RentCast / Estated) is not wired.
 - Experian credit pull is not wired.
 - MFA is not enforced in app code — relies on Supabase auth-layer config.
+- Concentration thresholds are configurable in `/admin/settings`
+  (`max_borrower_concentration`, `max_state_concentration`) but no
+  dashboard banner or origination gate uses them yet — they are stored
+  metadata only.
+- App-level rate limiting only covers `/forgot-password` (per-email cooldown
+  backed by migration 027). Login itself relies on Supabase's built-in
+  auth throttle since the client SDK calls Supabase directly. A proxy-
+  through-server-action pattern would let us add app-side login throttling.

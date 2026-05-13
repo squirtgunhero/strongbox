@@ -3,17 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowLeft, MailCheck } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { sendPasswordReset } from "./actions";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const supabase = createClient();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,17 +21,25 @@ export default function ForgotPasswordPage() {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
     const redirectBase = appUrl || window.location.origin;
-    const redirectTo = `${redirectBase}/reset-password`;
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo,
-    });
 
-    setLoading(false);
-    if (error) {
-      setError(error.message);
-      return;
+    try {
+      // The server action rate-limits per email and never reveals whether
+      // the account exists. Failures from Supabase are swallowed server-side
+      // for the same reason — if we get ok=false something configuration-
+      // level is wrong (e.g. missing service role).
+      const res = await sendPasswordReset(email, redirectBase);
+      setLoading(false);
+      if (!res.ok) {
+        setError(
+          "We couldn't send a reset email right now. Please contact support."
+        );
+        return;
+      }
+      setSent(true);
+    } catch (err) {
+      setLoading(false);
+      setError(err instanceof Error ? err.message : "Something went wrong");
     }
-    setSent(true);
   }
 
   return (

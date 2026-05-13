@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { accruedInterest } from "@/lib/calculations/interest";
+import { accruedInterestWithDefault } from "@/lib/calculations/interest";
 import { sendPendingNotifications } from "@/lib/notifications";
 import type { DayCountConvention } from "@/lib/types";
 
@@ -42,10 +42,10 @@ export async function POST(request: NextRequest) {
   const { data: loans } = await supabase
     .from("loans")
     .select(`
-      id, current_principal, interest_rate, day_count,
+      id, current_principal, interest_rate, default_rate, default_date, day_count,
       loan_borrowers(is_primary, borrower:borrowers(email, user_id))
     `)
-    .in("status", ["funded", "active"]);
+    .in("status", ["funded", "active", "defaulted"]);
 
   let generated = 0;
   let skipped = 0;
@@ -65,12 +65,19 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    const interestDue = accruedInterest(
+    // Use the split-period helper so loans that crossed into default during
+    // the period are billed correctly: pre-default days at the note rate,
+    // post-default days at the elevated default rate.
+    const interestDue = accruedInterestWithDefault(
       Number(loan.current_principal),
       Number(loan.interest_rate),
       loan.day_count as DayCountConvention,
       periodStart,
-      periodEnd
+      periodEnd,
+      {
+        defaultDate: loan.default_date as string | null,
+        defaultRate: loan.default_rate as number | null,
+      }
     );
 
     await supabase.from("notifications").insert({
@@ -112,7 +119,8 @@ export async function POST(request: NextRequest) {
   });
 }
 
-export async function GET(request: NextRequest) {
-  // Some cron services (Vercel) only do GET — accept both
-  return POST(request);
-}
+// Intentionally no GET handler. Side-effecting cron logic must run via POST
+// so the CRON_SECRET never appears in a referrer/proxy log as a URL fragment
+// and so accidental browser navigations cannot re-fire statement generation.
+// Vercel Cron supports POST when method is declared in vercel.json:
+//   { "path": "/api/cron/monthly-statements", "schedule": "0 12 1 * *", "method": "POST" }

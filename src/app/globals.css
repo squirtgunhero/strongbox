@@ -7,9 +7,11 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  /* FIX: was self-referential (var(--font-sans)) which fell back to serif.
+     Now points at the Next.js Geist variable + a real sans-serif stack. */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-heading: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,17 +51,15 @@
 }
 
 /* StrongBox — Lending OS palette.
-   Warm gray app shell, white panels, strong Strong-red primary,
-   charcoal headers and metric cards.
-   Brand: #E30613 red, #0A0A0A black, #F7F5F2 warm bg, #E5E1DA borders. */
+   Warm gray app shell, white panels, restrained red accent. */
 :root {
-  --background: #F7F5F2;                        /* warm gray app shell */
-  --foreground: #0A0A0A;                        /* near black */
+  --background: #F7F5F2;
+  --foreground: #0A0A0A;
   --card: #ffffff;
   --card-foreground: #0A0A0A;
   --popover: #ffffff;
   --popover-foreground: #0A0A0A;
-  --primary: oklch(0.56 0.23 26);               /* #E30613 strong red */
+  --primary: oklch(0.56 0.23 26);
   --primary-foreground: #ffffff;
   --secondary: #EFECE7;
   --secondary-foreground: #0A0A0A;
@@ -72,24 +72,21 @@
   --input: #E5E1DA;
   --ring: oklch(0.56 0.23 26);
 
-  /* Charcoal surface for dark header/metric cards */
   --charcoal: #111111;
   --charcoal-2: #181818;
   --charcoal-fg: oklch(0.97 0 0);
   --charcoal-fg-2: oklch(0.75 0 0);
   --charcoal-border: oklch(0.22 0 0);
 
-  /* Status colors */
-  --status-success: oklch(0.55 0.13 150);       /* funded/healthy green */
+  --status-success: oklch(0.55 0.13 150);
   --status-success-bg: oklch(0.96 0.03 150);
-  --status-warning: oklch(0.62 0.15 70);        /* pending amber */
+  --status-warning: oklch(0.62 0.15 70);
   --status-warning-bg: oklch(0.96 0.05 70);
-  --status-info: oklch(0.55 0.13 245);          /* review blue */
+  --status-info: oklch(0.55 0.13 245);
   --status-info-bg: oklch(0.96 0.03 245);
-  --status-danger: oklch(0.55 0.22 25);         /* urgent red */
+  --status-danger: oklch(0.55 0.22 25);
   --status-danger-bg: oklch(0.96 0.04 25);
 
-  /* Design-system bridge variables (sb-* tokens) */
   --bg: oklch(0.985 0.002 60);
   --bg-2: oklch(0.96 0.003 60);
   --surface: #ffffff;
@@ -108,11 +105,11 @@
   --chart-3: oklch(0.62 0.15 70);
   --chart-4: oklch(0.55 0.13 245);
   --chart-5: oklch(0.40 0 0);
-  --radius: 0.85rem;
-  --shadow-card: 0 1px 0 rgba(15, 17, 21, 0.06), 0 10px 24px -14px rgba(15, 17, 21, 0.18);
-  --shadow-card-hover: 0 1px 0 rgba(15, 17, 21, 0.1), 0 24px 48px -22px rgba(15, 17, 21, 0.24);
+  --radius: 0.75rem;
+  --shadow-card: 0 1px 0 rgba(15, 17, 21, 0.04), 0 1px 2px rgba(15, 17, 21, 0.04);
+  --shadow-card-hover: 0 1px 0 rgba(15, 17, 21, 0.06), 0 6px 18px -8px rgba(15, 17, 21, 0.16);
 
-  --sidebar: oklch(0.18 0 0);                   /* deep charcoal sidebar */
+  --sidebar: oklch(0.18 0 0);
   --sidebar-foreground: oklch(0.92 0 0);
   --sidebar-primary: oklch(0.55 0.22 25);
   --sidebar-primary-foreground: #ffffff;
@@ -157,13 +154,7 @@
   --border-strong: oklch(0.36 0 0);
   --text: oklch(0.97 0 0);
   --text-2: oklch(0.78 0 0);
-  --warn: var(--status-warning);
-  --warn-bg: var(--status-warning-bg);
-  --danger: var(--status-danger);
-  --danger-bg: var(--status-danger-bg);
-  --info: var(--status-info);
-  --info-bg: var(--status-info-bg);
-  --shadow-card: 0 1px 0 rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25);
+  --shadow-card: 0 1px 0 rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.25);
   --shadow-card-hover: 0 1px 0 rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.32);
 
   --sidebar: oklch(0.13 0 0);
@@ -182,28 +173,28 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-size: 15px;
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     font-feature-settings: "cv11", "ss01", "ss03";
     font-variant-numeric: tabular-nums;
   }
-  html {
-    @apply font-sans;
-  }
+  html { font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; }
+  h1, h2, h3, h4, h5, h6 { font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.015em; }
   .mono {
     font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.005em;
   }
 }
 
 /* Design-system typography utilities */
-.sb-h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.022em; line-height: 1.15; }
-.sb-h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
-.sb-h3 { font-size: 18px; font-weight: 600; letter-spacing: -0.015em; line-height: 1.25; }
-.sb-h4 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
-.sb-h5 { font-size: 15px; font-weight: 600; letter-spacing: -0.005em; }
+.sb-h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.022em; line-height: 1.15; }
+.sb-h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+.sb-h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.015em; line-height: 1.25; }
+.sb-h4 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.sb-h5 { font-size: 14px; font-weight: 600; letter-spacing: -0.005em; }
 .sb-h6 { font-size: 13px; font-weight: 600; }
 .sb-eyebrow {
   font-size: 11px;
@@ -212,20 +203,8 @@
   text-transform: uppercase;
   color: var(--muted-foreground);
 }
-.tabular { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.tabular { font-variant-numeric: tabular-nums; letter-spacing: -0.005em; }
 
-/* Subtle dotted texture for dark hero panels */
-.sb-noise {
-  background-image: radial-gradient(rgba(255,255,255,0.025) 1px, transparent 1px);
-  background-size: 18px 18px;
+.no-serif, .no-serif * {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
-
-/* Faint red radial glow for hero accent */
-.sb-glow {
-  background:
-    radial-gradient(800px circle at 100% 0%, oklch(0.56 0.23 26 / 0.18), transparent 50%),
-    radial-gradient(600px circle at 0% 100%, oklch(0.56 0.23 26 / 0.08), transparent 55%);
-}
-
-/* Disable system serifs anywhere a tailwind preset might leak through */
-.no-serif, .no-serif * { font-family: var(--font-sans), system-ui, sans-serif; }

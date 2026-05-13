@@ -1,65 +1,56 @@
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 interface WordmarkProps {
   className?: string;
-  /** Height in px. Width auto-scales by viewBox. */
+  /** Height in px. Width auto-scales to the wordmark aspect ratio. */
   height?: number;
-  /** Hide the red shadow (e.g. when nesting in tight UI). */
-  flat?: boolean;
-  /** Override the displayed text — defaults to "StrongBox". */
-  label?: string;
-  /** `aria-label` for the rendered svg. */
+  /** `aria-label` for the rendered image. */
   title?: string;
 }
 
-/**
- * StrongBox wordmark — black serif "StrongBox" with a red offset shadow.
- * Renders as inline SVG so it scales crisply and inherits currentColor for the
- * primary glyphs. The red accent is fixed to the brand red (#E30613).
- */
+// The source PNG is a 1254×1254 square with the wordmark centered inside,
+// surrounded by whitespace. The actual mark occupies ~980×330 in the middle.
+// We crop to the mark's bounding box at render time with object-fit so the
+// rendered wordmark sits flush in tight UI without dead space around it.
+const SRC_W = 1254;
+const SRC_H = 1254;
+const MARK_W = 980;
+const MARK_H = 330;
+const ASPECT = MARK_W / MARK_H; // ≈ 2.97
+
 export function Wordmark({
   className,
-  height = 28,
-  flat = false,
-  label = "StrongBox",
+  height = 24,
   title = "StrongBox",
 }: WordmarkProps) {
-  // viewBox sized for the default label. Width is generous to avoid clipping
-  // the red shadow on the right edge.
+  const width = Math.round(height * ASPECT);
+  // Scale factor from rendered height to source pixel height.
+  const scale = height / MARK_H;
+  const renderedSrcW = SRC_W * scale;
+  const renderedSrcH = SRC_H * scale;
+
   return (
-    <svg
+    <span
+      className={cn("relative inline-block overflow-hidden align-middle", className)}
+      style={{ width, height }}
       role="img"
       aria-label={title}
-      viewBox="0 0 520 96"
-      height={height}
-      width={(height * 520) / 96}
-      className={cn("select-none", className)}
     >
-      <title>{title}</title>
-      {!flat && (
-        <text
-          x="6"
-          y="72"
-          fill="#E30613"
-          fontFamily='"Times New Roman", "Times", "Cormorant Garamond", "Georgia", serif'
-          fontWeight={700}
-          fontSize="72"
-          letterSpacing="-1.5"
-        >
-          {label}
-        </text>
-      )}
-      <text
-        x="0"
-        y="68"
-        fill="currentColor"
-        fontFamily='"Times New Roman", "Times", "Cormorant Garamond", "Georgia", serif'
-        fontWeight={700}
-        fontSize="72"
-        letterSpacing="-1.5"
-      >
-        {label}
-      </text>
-    </svg>
+      <Image
+        src="/brand/wordmark.png"
+        alt={title}
+        width={SRC_W}
+        height={SRC_H}
+        priority
+        className="absolute max-w-none"
+        style={{
+          width: renderedSrcW,
+          height: renderedSrcH,
+          left: (width - renderedSrcW) / 2,
+          top: (height - renderedSrcH) / 2,
+        }}
+      />
+    </span>
   );
 }

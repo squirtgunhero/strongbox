@@ -92,11 +92,11 @@ export default async function PropertiesPage({
           <TableHeader>
             <TableRow>
               <TableHead>Address</TableHead>
-              <TableHead>Type</TableHead>
+              <TableHead className="hidden sm:table-cell">Type</TableHead>
               <SortableTH field="as_is_value" align="right">As-Is Value</SortableTH>
-              <SortableTH field="after_repair_value" align="right">ARV</SortableTH>
-              <SortableTH field="rehab_budget" align="right">Rehab Budget</SortableTH>
-              <SortableTH field="created_at">Created</SortableTH>
+              <SortableTH field="after_repair_value" align="right" className="hidden md:table-cell">ARV</SortableTH>
+              <SortableTH field="rehab_budget" align="right" className="hidden md:table-cell">Rehab Budget</SortableTH>
+              <SortableTH field="created_at" className="hidden sm:table-cell">Created</SortableTH>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -117,7 +117,7 @@ export default async function PropertiesPage({
                       {propertyAddress(p)}
                     </Link>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <Badge variant="outline">
                       {PROPERTY_TYPE_LABELS[p.property_type as PropertyType]}
                     </Badge>
@@ -125,13 +125,13 @@ export default async function PropertiesPage({
                   <TableCell className="text-right">
                     {formatCurrency(p.as_is_value)}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="hidden md:table-cell text-right">
                     {formatCurrency(p.after_repair_value)}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="hidden md:table-cell text-right">
                     {formatCurrency(p.rehab_budget)}
                   </TableCell>
-                  <TableCell>{formatDate(p.created_at)}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{formatDate(p.created_at)}</TableCell>
                 </TableRow>
               ))
             )}

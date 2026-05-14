@@ -117,11 +117,11 @@ export default async function AuditLogPage({
             <TableHeader>
               <TableRow>
                 <TableHead>When</TableHead>
-                <TableHead>By</TableHead>
+                <TableHead className="hidden sm:table-cell">By</TableHead>
                 <TableHead>Action</TableHead>
-                <TableHead>Table</TableHead>
-                <TableHead>Record</TableHead>
-                <TableHead>Details</TableHead>
+                <TableHead className="hidden md:table-cell">Table</TableHead>
+                <TableHead className="hidden lg:table-cell">Record</TableHead>
+                <TableHead className="hidden md:table-cell">Details</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -137,7 +137,7 @@ export default async function AuditLogPage({
                     <TableCell className="text-xs whitespace-nowrap">
                       {new Date(e.created_at).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell className="hidden sm:table-cell text-sm">
                       {e.performer?.full_name || (
                         <span className="text-muted-foreground">system</span>
                       )}
@@ -147,13 +147,13 @@ export default async function AuditLogPage({
                         {e.action}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm font-mono">
+                    <TableCell className="hidden md:table-cell text-sm font-mono">
                       {e.table_name}
                     </TableCell>
-                    <TableCell className="text-xs font-mono text-muted-foreground">
+                    <TableCell className="hidden lg:table-cell text-xs font-mono text-muted-foreground">
                       {e.record_id?.slice(0, 8) || "--"}
                     </TableCell>
-                    <TableCell className="text-xs font-mono max-w-md truncate">
+                    <TableCell className="hidden md:table-cell text-xs font-mono max-w-md truncate">
                       {e.new_values ? JSON.stringify(e.new_values) : "--"}
                     </TableCell>
                   </TableRow>

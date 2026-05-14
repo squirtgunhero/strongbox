@@ -4,15 +4,18 @@ import Link from "next/link";
 import { useSearchParams, usePathname } from "next/navigation";
 import { TableHead } from "@/components/ui/table";
 import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function SortableTH({
   field,
   children,
   align = "left",
+  className,
 }: {
   field: string;
   children: React.ReactNode;
   align?: "left" | "right";
+  className?: string;
 }) {
   const pathname = usePathname();
   const params = useSearchParams();
@@ -33,7 +36,7 @@ export function SortableTH({
       : ChevronUp;
 
   return (
-    <TableHead className={align === "right" ? "text-right" : ""}>
+    <TableHead className={cn(align === "right" && "text-right", className)}>
       <Link
         href={`${pathname}?${next.toString()}`}
         className={`inline-flex items-center gap-1 hover:text-foreground ${

@@ -63,11 +63,11 @@ export default async function InvestorsPage({
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Email</TableHead>
+              <TableHead className="hidden sm:table-cell">Type</TableHead>
+              <TableHead className="hidden md:table-cell">Email</TableHead>
               <TableHead className="text-right">Committed</TableHead>
-              <TableHead className="text-right">Deployed</TableHead>
-              <TableHead>Created</TableHead>
+              <TableHead className="hidden sm:table-cell text-right">Deployed</TableHead>
+              <TableHead className="hidden md:table-cell">Created</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -100,21 +100,21 @@ export default async function InvestorsPage({
                         {name}
                       </Link>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Badge variant="outline">
                         {inv.investor_type === "entity"
                           ? "Entity"
                           : "Individual"}
                       </Badge>
                     </TableCell>
-                    <TableCell>{inv.email}</TableCell>
+                    <TableCell className="hidden md:table-cell">{inv.email}</TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(inv.committed_capital)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="hidden sm:table-cell text-right">
                       {formatCurrency(deployed)}
                     </TableCell>
-                    <TableCell>{formatDate(inv.created_at)}</TableCell>
+                    <TableCell className="hidden md:table-cell">{formatDate(inv.created_at)}</TableCell>
                   </TableRow>
                 );
               })

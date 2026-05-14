@@ -143,7 +143,7 @@ export function LoansTable({
             {selected.size} selected
           </span>
           <div className="ml-auto flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-muted-foreground">Assign:</span>
+            <span className="hidden text-xs text-muted-foreground sm:inline">Assign:</span>
             <Select
               onValueChange={(v) => {
                 if (!v || typeof v !== "string") return;
@@ -163,7 +163,7 @@ export function LoansTable({
                 ))}
               </SelectContent>
             </Select>
-            <span className="text-xs text-muted-foreground">Move to:</span>
+            <span className="hidden text-xs text-muted-foreground sm:inline">Move to:</span>
             <Select
               onValueChange={(v) => {
                 if (!v || typeof v !== "string") return;
@@ -206,14 +206,14 @@ export function LoansTable({
                 />
               </TableHead>
               <TableHead>Property</TableHead>
-              <TableHead>Borrower</TableHead>
+              <TableHead className="hidden sm:table-cell">Borrower</TableHead>
               <SortableTH field="status">Status</SortableTH>
               <SortableTH field="loan_amount" align="right">Loan Amount</SortableTH>
-              <SortableTH field="interest_rate" align="right">Rate</SortableTH>
-              <SortableTH field="term_months">Term</SortableTH>
-              <TableHead>Officer</TableHead>
-              <SortableTH field="maturity_date">Maturity</SortableTH>
-              <SortableTH field="created_at">Created</SortableTH>
+              <SortableTH field="interest_rate" align="right" className="hidden lg:table-cell">Rate</SortableTH>
+              <SortableTH field="term_months" className="hidden lg:table-cell">Term</SortableTH>
+              <TableHead className="hidden xl:table-cell">Officer</TableHead>
+              <SortableTH field="maturity_date" className="hidden md:table-cell">Maturity</SortableTH>
+              <SortableTH field="created_at" className="hidden xl:table-cell">Created</SortableTH>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -255,7 +255,7 @@ export function LoansTable({
                         {address}
                       </Link>
                     </TableCell>
-                    <TableCell>{borrowerName}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{borrowerName}</TableCell>
                     <TableCell>
                       <Badge variant={statusVariant[loan.status]}>
                         {LOAN_STATUS_LABELS[loan.status]}
@@ -264,15 +264,15 @@ export function LoansTable({
                     <TableCell className="text-right">
                       {formatCurrency(loan.loan_amount)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="hidden text-right lg:table-cell">
                       {formatRate(loan.interest_rate)}
                     </TableCell>
-                    <TableCell>{loan.term_months}mo</TableCell>
-                    <TableCell>
+                    <TableCell className="hidden lg:table-cell">{loan.term_months}mo</TableCell>
+                    <TableCell className="hidden xl:table-cell">
                       {loan.loan_officer?.full_name || "--"}
                     </TableCell>
-                    <TableCell>{formatDate(loan.maturity_date)}</TableCell>
-                    <TableCell>{formatDate(loan.created_at)}</TableCell>
+                    <TableCell className="hidden md:table-cell">{formatDate(loan.maturity_date)}</TableCell>
+                    <TableCell className="hidden xl:table-cell">{formatDate(loan.created_at)}</TableCell>
                   </TableRow>
                 );
               })

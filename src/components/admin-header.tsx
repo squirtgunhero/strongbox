@@ -73,11 +73,11 @@ export function AdminHeader({ profile, onMenuToggle }: AdminHeaderProps) {
       <Button
         nativeButton={false}
         size="default"
-        className="h-8 rounded-lg px-3 text-[12.5px] font-medium"
+        className="h-8 rounded-lg px-2 text-[12.5px] font-medium sm:px-3"
         render={<Link href="/admin/loans/new" />}
       >
         <Plus className="h-4 w-4" />
-        New loan
+        <span className="hidden sm:inline">New loan</span>
       </Button>
 
       <ThemeToggle />

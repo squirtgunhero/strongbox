@@ -104,10 +104,10 @@ export default async function ServicingPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Property</TableHead>
-                      <TableHead>Borrower</TableHead>
-                      <TableHead>Maturity</TableHead>
+                      <TableHead className="hidden sm:table-cell">Borrower</TableHead>
+                      <TableHead className="hidden md:table-cell">Maturity</TableHead>
                       <TableHead className="text-right">Principal</TableHead>
-                      <TableHead className="text-right">Rate</TableHead>
+                      <TableHead className="hidden md:table-cell text-right">Rate</TableHead>
                       <TableHead>Days</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -136,12 +136,12 @@ export default async function ServicingPage() {
                               {address}
                             </Link>
                           </TableCell>
-                          <TableCell>{name}</TableCell>
-                          <TableCell>{formatDate(loan.maturity_date)}</TableCell>
+                          <TableCell className="hidden sm:table-cell">{name}</TableCell>
+                          <TableCell className="hidden md:table-cell">{formatDate(loan.maturity_date)}</TableCell>
                           <TableCell className="text-right">
                             {formatCurrency(loan.current_principal)}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="hidden md:table-cell text-right">
                             {formatRate(loan.interest_rate)}
                           </TableCell>
                           <TableCell

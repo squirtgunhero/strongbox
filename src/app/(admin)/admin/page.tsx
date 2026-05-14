@@ -646,7 +646,7 @@ export default async function AdminDashboard({
 
       <KpiStrip cells={kpis} />
 
-      <div className="grid gap-3 xl:grid-cols-[1.55fr_1fr]">
+      <div className="grid gap-3 lg:grid-cols-[1.55fr_1fr]">
         <PipelineBoard
           mode={isDemo ? "demo" : "live"}
           stages={isDemo ? demoStages : liveStages}
@@ -659,7 +659,7 @@ export default async function AdminDashboard({
         <TodayPanel rows={isDemo ? demoTodayRows : liveTodayRows} />
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-[1.4fr_1fr]">
+      <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr]">
         <RecentlyFunded rows={isDemo ? demoFundedRows : liveFundedRows} />
         <MaturityLadder
           rows={isDemo ? demoMaturityRows : liveMaturityRows}

@@ -41,27 +41,27 @@ export default async function PortalLayout({
 
   return (
     <div className="no-serif flex min-h-screen flex-col">
-      <header className="border-b">
-        <div className="mx-auto flex h-16 max-w-[1180px] items-center justify-between px-6">
+      <header className="relative border-b">
+        <div className="mx-auto flex h-16 max-w-[1180px] items-center justify-between px-4 sm:px-6">
           <Link href="/portal" className="flex items-center gap-3">
             <Wordmark height={22} className="text-foreground" />
-            <span className="border-l pl-3 text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground">
+            <span className="hidden border-l pl-3 text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground sm:inline">
               Borrower portal
             </span>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <PortalNav unreadCount={unread || 0} />
             <ThemeToggle />
             <form action={signOut}>
               <Button type="submit" variant="ghost" size="sm">
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign out
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline ml-2">Sign out</span>
               </Button>
             </form>
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-[1180px] flex-1 px-6 py-9">
+      <main className="mx-auto w-full max-w-[1180px] flex-1 px-4 py-6 sm:px-6 sm:py-9">
         {children}
       </main>
     </div>

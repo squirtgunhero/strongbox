@@ -165,14 +165,14 @@ export default async function LoanDetailPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-bold sm:text-2xl">
             {loan.property
               ? propertyAddress(loan.property)
               : `Loan ${loan.id.slice(0, 8)}`}
           </h1>
-          <div className="mt-1 flex items-center gap-3">
+          <div className="mt-1 flex flex-wrap items-center gap-2 sm:gap-3">
             <Badge>{LOAN_STATUS_LABELS[loan.status as LoanStatus]}</Badge>
             {loan.loan_purpose && (
               <span className="text-sm text-muted-foreground">

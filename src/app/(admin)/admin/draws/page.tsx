@@ -75,9 +75,9 @@ export default async function DrawsWorklistPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Property</TableHead>
-                    <TableHead>Requested</TableHead>
+                    <TableHead className="hidden sm:table-cell">Requested</TableHead>
                     <TableHead className="text-right">Requested</TableHead>
-                    <TableHead className="text-right">Approved</TableHead>
+                    <TableHead className="hidden sm:table-cell text-right">Approved</TableHead>
                     <TableHead>Approvals</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -96,11 +96,11 @@ export default async function DrawsWorklistPage() {
                           "--"
                         )}
                       </TableCell>
-                      <TableCell>{formatDate(d.requested_at)}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{formatDate(d.requested_at)}</TableCell>
                       <TableCell className="text-right">
                         {formatCurrency(d.requested_amount)}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="hidden sm:table-cell text-right">
                         {d.approved_amount
                           ? formatCurrency(d.approved_amount)
                           : "--"}

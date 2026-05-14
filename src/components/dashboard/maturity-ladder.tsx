@@ -54,7 +54,7 @@ export function MaturityLadder({
             return (
               <li
                 key={row.id}
-                className="grid grid-cols-[1fr_1.4fr_auto] items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/40"
+                className="grid grid-cols-[1fr_auto] items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/40 sm:grid-cols-[1fr_1.4fr_auto]"
               >
                 <Link
                   href={`/admin/loans/${row.id}`}
@@ -67,7 +67,7 @@ export function MaturityLadder({
                     {row.id.slice(0, 12)} · {row.maturity}
                   </div>
                 </Link>
-                <div className="relative h-1 overflow-hidden rounded-full bg-muted">
+                <div className="relative hidden h-1 overflow-hidden rounded-full bg-muted sm:block">
                   <div
                     className={cn(
                       "h-full rounded-full",

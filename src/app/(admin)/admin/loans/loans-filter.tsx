@@ -61,7 +61,7 @@ export function LoansFilter({
   }
 
   return (
-    <div className="flex gap-3 items-end flex-wrap">
+    <div className="flex gap-2 items-end flex-wrap sm:gap-3">
       <button
         onClick={toggleMine}
         className={`h-9 px-3 rounded-md border text-sm transition-colors ${
@@ -72,7 +72,7 @@ export function LoansFilter({
       >
         Mine
       </button>
-      <div className="flex-1 min-w-[240px]">
+      <div className="flex-1 min-w-full sm:w-[180px] sm:min-w-[240px]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
@@ -83,7 +83,7 @@ export function LoansFilter({
           />
         </div>
       </div>
-      <div className="w-[180px]">
+      <div className="w-full sm:w-[180px]">
         <Select
           value={currentStatus}
           onValueChange={(v) => v && update({ status: v })}
@@ -101,7 +101,7 @@ export function LoansFilter({
           </SelectContent>
         </Select>
       </div>
-      <div className="w-[180px]">
+      <div className="w-full sm:w-[180px]">
         <Select
           value={currentOfficer}
           onValueChange={(v) => v && update({ officer: v })}
@@ -120,7 +120,7 @@ export function LoansFilter({
           </SelectContent>
         </Select>
       </div>
-      <div className="w-[180px]">
+      <div className="w-full sm:w-[180px]">
         <Select
           value={currentMaturity}
           onValueChange={(v) => v && update({ maturity: v })}
@@ -138,7 +138,7 @@ export function LoansFilter({
         </Select>
       </div>
       {tagOptions.length > 0 && (
-        <div className="w-[180px]">
+        <div className="w-full sm:w-[180px]">
           <Select
             value={currentTag}
             onValueChange={(v) => v && update({ tag: v })}

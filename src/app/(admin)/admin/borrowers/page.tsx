@@ -48,10 +48,10 @@ export default async function BorrowersPage({
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Phone</TableHead>
+              <TableHead className="hidden sm:table-cell">Email</TableHead>
+              <TableHead className="hidden md:table-cell">Phone</TableHead>
               <TableHead className="text-right">Deals</TableHead>
-              <TableHead>Created</TableHead>
+              <TableHead className="hidden sm:table-cell">Created</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -79,10 +79,10 @@ export default async function BorrowersPage({
                       {b.borrower_type === "entity" ? "Entity" : "Individual"}
                     </Badge>
                   </TableCell>
-                  <TableCell>{b.email || "--"}</TableCell>
-                  <TableCell>{b.phone || "--"}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{b.email || "--"}</TableCell>
+                  <TableCell className="hidden md:table-cell">{b.phone || "--"}</TableCell>
                   <TableCell className="text-right">{b.deals_completed}</TableCell>
-                  <TableCell>{formatDate(b.created_at)}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{formatDate(b.created_at)}</TableCell>
                 </TableRow>
               ))
             )}

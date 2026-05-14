@@ -59,6 +59,11 @@ export function SettingsForm({ settings }: { settings: Settings | null }) {
         </p>
       </div>
 
+      <div className="pt-2">
+        <div className="text-[13px] font-semibold">Underwriting Limits</div>
+        <p className="text-[12px] text-muted-foreground mt-0.5">Maximum ratios applied during loan underwriting. Loans exceeding these thresholds are flagged for review.</p>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="dual_approval_threshold">
@@ -107,6 +112,13 @@ export function SettingsForm({ settings }: { settings: Settings | null }) {
         </div>
       </div>
 
+      <p className="text-[11px] text-muted-foreground -mt-2">LTARV = Loan-to-After-Repair Value · LTV = Loan-to-Value (as-is) · LTC = Loan-to-Cost</p>
+
+      <div className="pt-2">
+        <div className="text-[13px] font-semibold">Concentration Limits</div>
+        <p className="text-[12px] text-muted-foreground mt-0.5">Dashboard alerts when portfolio exposure to a single borrower or state exceeds these percentages.</p>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="max_borrower_concentration">
@@ -140,6 +152,11 @@ export function SettingsForm({ settings }: { settings: Settings | null }) {
             }
           />
         </div>
+      </div>
+
+      <div className="pt-2">
+        <div className="text-[13px] font-semibold">Security</div>
+        <p className="text-[12px] text-muted-foreground mt-0.5">Authentication and access control settings for staff accounts.</p>
       </div>
 
       <div className="rounded-lg border bg-muted/30 p-4">

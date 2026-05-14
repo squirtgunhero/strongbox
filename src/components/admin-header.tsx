@@ -13,13 +13,16 @@ import { Menu, Search, LogOut, Plus } from "lucide-react";
 import { signOut } from "@/app/(auth)/login/actions";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getAdminRouteMeta } from "@/components/admin-nav";
+import { AdminBreadcrumb } from "@/components/admin-breadcrumb";
 
 interface AdminHeaderProps {
   profile: { full_name: string; role: string };
   onMenuToggle: () => void;
+  /** Title for detail pages shown in breadcrumb (e.g., property address) */
+  detail?: string;
 }
 
-export function AdminHeader({ profile, onMenuToggle }: AdminHeaderProps) {
+export function AdminHeader({ profile, onMenuToggle, detail }: AdminHeaderProps) {
   const pathname = usePathname();
   const routeMeta = getAdminRouteMeta(pathname);
 
@@ -48,9 +51,9 @@ export function AdminHeader({ profile, onMenuToggle }: AdminHeaderProps) {
           <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             {routeMeta.section}
           </div>
-          <h1 className="mt-0.5 truncate text-[14px] font-semibold tracking-[-0.01em] text-foreground">
-            {routeMeta.title}
-          </h1>
+          <div className="mt-0.5">
+            <AdminBreadcrumb detail={detail} />
+          </div>
         </div>
 
         <div className="hidden flex-1 min-[1100px]:block" />

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { borrowerDisplayName, formatDate } from "@/lib/format";
 import { ListSearch } from "@/components/list-search";
+import { Users } from "lucide-react";
 
 export default async function BorrowersPage({
   searchParams,
@@ -43,51 +45,70 @@ export default async function BorrowersPage({
       <ListSearch placeholder="Search by name, email, or phone..." />
 
       <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead className="hidden sm:table-cell">Email</TableHead>
-              <TableHead className="hidden md:table-cell">Phone</TableHead>
-              <TableHead className="text-right">Deals</TableHead>
-              <TableHead className="hidden sm:table-cell">Created</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {!borrowers?.length ? (
+        {!borrowers?.length && !search ? (
+          <div className="flex flex-col items-center justify-center py-16 px-4">
+            <div className="rounded-full bg-muted p-3 mb-3">
+              <Users className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="text-[14px] font-medium">No borrowers yet</div>
+            <p className="mt-1 text-[12.5px] text-muted-foreground text-center max-w-[300px]">
+              Borrowers are created automatically when you create a loan.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              nativeButton={false}
+              render={<Link href="/admin/loans/new" />}
+            >
+              Create a Loan
+            </Button>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                  {search
-                    ? "No borrowers match your search."
-                    : "No borrowers yet. They are created when you create a loan."}
-                </TableCell>
+                <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead className="hidden sm:table-cell">Email</TableHead>
+                <TableHead className="hidden md:table-cell">Phone</TableHead>
+                <TableHead className="text-right">Deals</TableHead>
+                <TableHead className="hidden sm:table-cell">Created</TableHead>
               </TableRow>
-            ) : (
-              borrowers.map((b) => (
-                <TableRow key={b.id}>
-                  <TableCell className="font-medium">
-                    <Link
-                      href={`/admin/borrowers/${b.id}`}
-                      className="hover:underline"
-                    >
-                      {borrowerDisplayName(b)}
-                    </Link>
+            </TableHeader>
+            <TableBody>
+              {!borrowers?.length ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    No borrowers match your search.
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {b.borrower_type === "entity" ? "Entity" : "Individual"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="hidden sm:table-cell">{b.email || "--"}</TableCell>
-                  <TableCell className="hidden md:table-cell">{b.phone || "--"}</TableCell>
-                  <TableCell className="text-right">{b.deals_completed}</TableCell>
-                  <TableCell className="hidden sm:table-cell">{formatDate(b.created_at)}</TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                borrowers.map((b) => (
+                  <TableRow key={b.id}>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/admin/borrowers/${b.id}`}
+                        className="hover:underline"
+                      >
+                        {borrowerDisplayName(b)}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {b.borrower_type === "entity" ? "Entity" : "Individual"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">{b.email || "--"}</TableCell>
+                    <TableCell className="hidden md:table-cell">{b.phone || "--"}</TableCell>
+                    <TableCell className="text-right">{b.deals_completed}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{formatDate(b.created_at)}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
       </div>
     </div>
   );

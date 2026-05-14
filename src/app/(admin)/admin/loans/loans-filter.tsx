@@ -84,6 +84,7 @@ export function LoansFilter({
         </div>
       </div>
       <div className="w-full sm:w-[180px]">
+        <div className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-muted-foreground mb-1">Status</div>
         <Select
           value={currentStatus}
           onValueChange={(v) => v && update({ status: v })}
@@ -102,6 +103,7 @@ export function LoansFilter({
         </Select>
       </div>
       <div className="w-full sm:w-[180px]">
+        <div className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-muted-foreground mb-1">Officer</div>
         <Select
           value={currentOfficer}
           onValueChange={(v) => v && update({ officer: v })}
@@ -121,6 +123,7 @@ export function LoansFilter({
         </Select>
       </div>
       <div className="w-full sm:w-[180px]">
+        <div className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-muted-foreground mb-1">Maturity</div>
         <Select
           value={currentMaturity}
           onValueChange={(v) => v && update({ maturity: v })}
@@ -139,6 +142,7 @@ export function LoansFilter({
       </div>
       {tagOptions.length > 0 && (
         <div className="w-full sm:w-[180px]">
+          <div className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-muted-foreground mb-1">Tag</div>
           <Select
             value={currentTag}
             onValueChange={(v) => v && update({ tag: v })}

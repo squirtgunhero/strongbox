@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -13,6 +14,7 @@ import { formatCurrency, formatDate, propertyAddress } from "@/lib/format";
 import { PROPERTY_TYPE_LABELS, type PropertyType } from "@/lib/types";
 import { PropertiesFilter } from "./properties-filter";
 import { SortableTH } from "@/components/sortable-th";
+import { Building2 } from "lucide-react";
 
 export default async function PropertiesPage({
   searchParams,
@@ -88,55 +90,76 @@ export default async function PropertiesPage({
       <PropertiesFilter states={states} />
 
       <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Address</TableHead>
-              <TableHead className="hidden sm:table-cell">Type</TableHead>
-              <SortableTH field="as_is_value" align="right">As-Is Value</SortableTH>
-              <SortableTH field="after_repair_value" align="right" className="hidden md:table-cell">ARV</SortableTH>
-              <SortableTH field="rehab_budget" align="right" className="hidden md:table-cell">Rehab Budget</SortableTH>
-              <SortableTH field="created_at" className="hidden sm:table-cell">Created</SortableTH>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {!pageProperties?.length ? (
+        {!pageProperties?.length && !search && (!stateFilter || stateFilter === "ALL") ? (
+          <div className="flex flex-col items-center justify-center py-16 px-4">
+            <div className="rounded-full bg-muted p-3 mb-3">
+              <Building2 className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="text-[14px] font-medium">No properties yet</div>
+            <p className="mt-1 text-[12.5px] text-muted-foreground text-center max-w-[300px]">
+              Properties are added automatically when you create a loan.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              nativeButton={false}
+              render={<Link href="/admin/loans/new" />}
+            >
+              Create a Loan
+            </Button>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                  No properties match your filters.
-                </TableCell>
+                <TableHead>Address</TableHead>
+                <TableHead className="hidden sm:table-cell">Type</TableHead>
+                <SortableTH field="as_is_value" align="right">As-Is Value</SortableTH>
+                <SortableTH field="after_repair_value" align="right" className="hidden md:table-cell">ARV</SortableTH>
+                <SortableTH field="rehab_budget" align="right" className="hidden md:table-cell">Rehab Budget</SortableTH>
+                <SortableTH field="created_at" className="hidden sm:table-cell">Created</SortableTH>
               </TableRow>
-            ) : (
-              pageProperties.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-medium">
-                    <Link
-                      href={`/admin/properties/${p.id}`}
-                      className="hover:underline"
-                    >
-                      {propertyAddress(p)}
-                    </Link>
+            </TableHeader>
+            <TableBody>
+              {!pageProperties?.length ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    No properties match your filters.
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell">
-                    <Badge variant="outline">
-                      {PROPERTY_TYPE_LABELS[p.property_type as PropertyType]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(p.as_is_value)}
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell text-right">
-                    {formatCurrency(p.after_repair_value)}
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell text-right">
-                    {formatCurrency(p.rehab_budget)}
-                  </TableCell>
-                  <TableCell className="hidden sm:table-cell">{formatDate(p.created_at)}</TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                pageProperties.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/admin/properties/${p.id}`}
+                        className="hover:underline"
+                      >
+                        {propertyAddress(p)}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <Badge variant="outline">
+                        {PROPERTY_TYPE_LABELS[p.property_type as PropertyType]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(p.as_is_value)}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-right">
+                      {formatCurrency(p.after_repair_value)}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-right">
+                      {formatCurrency(p.rehab_budget)}
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">{formatDate(p.created_at)}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
       </div>
 
       {totalPages > 1 && (

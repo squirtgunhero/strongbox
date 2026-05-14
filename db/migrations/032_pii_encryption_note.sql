@@ -1,0 +1,24 @@
+-- PII Encryption: SSN, EIN, and tax_id fields
+--
+-- These columns (borrowers.ssn_encrypted, borrowers.ein_encrypted,
+-- investors.tax_id_encrypted) are now encrypted at the application layer
+-- using AES-256-GCM before being stored.
+--
+-- Encryption is handled by src/lib/crypto.ts with the FIELD_ENCRYPTION_KEY
+-- environment variable. The key must be a 64-character hex string (32 bytes).
+--
+-- Generate a key:
+--   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+--
+-- To encrypt existing plaintext values, run this one-time script from
+-- the app server (not as a SQL migration, since encryption uses Node.js):
+--
+--   npx tsx scripts/encrypt-existing-pii.ts
+--
+-- Column-level grants (migration 028) already restrict these columns to
+-- service_role only, so only server-side code can read or write them.
+--
+-- No schema changes needed — the columns remain `text` type. The stored
+-- value changes from plaintext to base64-encoded AES-256-GCM ciphertext.
+
+SELECT 1; -- no-op migration, documentation only

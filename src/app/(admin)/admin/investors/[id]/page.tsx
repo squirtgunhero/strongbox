@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { decryptFieldSafe } from "@/lib/crypto";
+import { InvestorEditForm } from "./investor-edit-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +48,21 @@ export default async function InvestorDetailPage({
     .single();
 
   if (!investor) notFound();
+
+  // tax_id_encrypted is column-grant-restricted to service_role.
+  const admin = createAdminClient();
+  let taxIdLastFour: string | null = null;
+  if (admin) {
+    const { data: pii } = await admin
+      .from("investors")
+      .select("tax_id_encrypted")
+      .eq("id", id)
+      .single();
+    if (pii) {
+      const taxId = await decryptFieldSafe(pii.tax_id_encrypted);
+      taxIdLastFour = taxId ? taxId.replace(/\D/g, "").slice(-4) || null : null;
+    }
+  }
 
   const name =
     investor.investor_type === "entity"
@@ -116,6 +134,27 @@ export default async function InvestorDetailPage({
           value={`${(ytd.annualizedReturn * 100).toFixed(2)}%`}
         />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Profile</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <InvestorEditForm
+            investor={{
+              id: investor.id,
+              investor_type: investor.investor_type,
+              full_name: investor.full_name,
+              entity_name: investor.entity_name,
+              email: investor.email,
+              phone: investor.phone,
+              committed_capital: Number(investor.committed_capital),
+              notes: investor.notes,
+            }}
+            tax_id_last_four={taxIdLastFour}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

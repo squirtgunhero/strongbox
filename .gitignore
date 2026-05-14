@@ -52,3 +52,7 @@ next-env.d.ts
 *\ 3.css
 *\ 3.json
 *\ 3.sql
+
+# Supabase CLI temp/local artifacts
+supabase/.temp
+supabase/.branches

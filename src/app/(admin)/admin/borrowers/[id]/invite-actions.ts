@@ -5,6 +5,17 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { borrowerDisplayName } from "@/lib/format";
 import { requireStaff } from "@/lib/auth/require-staff";
+import { queueNotification } from "@/lib/notifications";
+import { inviteEmailTemplate } from "@/lib/emails/templates";
+
+async function loadOrgName(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const { data } = await supabase
+    .from("org_settings")
+    .select("org_name")
+    .eq("id", 1)
+    .single();
+  return data?.org_name || "StrongBox";
+}
 
 function getAppBaseUrl() {
   const configured =
@@ -49,21 +60,28 @@ export async function inviteBorrower(borrowerId: string) {
   if (!borrower.email) throw new Error("Borrower has no email on file");
   if (borrower.user_id) throw new Error("Borrower is already linked to a user");
 
-  // Use Supabase admin API to invite via email
+  // Generate the invite link WITHOUT sending Supabase's default email; we'll
+  // send a branded version via Resend below.
   const redirectTo = `${getAppBaseUrl()}/reset-password`;
-  const { data: invited, error: inviteError } =
-    await admin.auth.admin.inviteUserByEmail(borrower.email, {
-      redirectTo,
-      data: { role: "borrower" },
+  const { data: linkData, error: linkError } =
+    await admin.auth.admin.generateLink({
+      type: "invite",
+      email: borrower.email,
+      options: {
+        redirectTo,
+        data: { role: "borrower" },
+      },
     });
-  if (inviteError) throw new Error(inviteError.message);
-  if (!invited.user) throw new Error("Invite did not return a user");
+  if (linkError) throw new Error(linkError.message);
+  const invitedUser = linkData?.user;
+  const actionLink = linkData?.properties?.action_link;
+  if (!invitedUser || !actionLink) throw new Error("Invite did not return a user");
 
   const fullName = borrowerDisplayName(borrower);
 
   // Create the profile row with borrower role
   await admin.from("profiles").upsert({
-    id: invited.user.id,
+    id: invitedUser.id,
     role: "borrower",
     full_name: fullName,
     email: borrower.email,
@@ -73,15 +91,32 @@ export async function inviteBorrower(borrowerId: string) {
   // Link borrower to the new auth user
   await admin
     .from("borrowers")
-    .update({ user_id: invited.user.id })
+    .update({ user_id: invitedUser.id })
     .eq("id", borrowerId);
 
   await admin.from("audit_log").insert({
     table_name: "borrowers",
     record_id: borrowerId,
     action: "update",
-    new_values: { invited_email: borrower.email, linked_user_id: invited.user.id },
+    new_values: { invited_email: borrower.email, linked_user_id: invitedUser.id },
     performed_by: caller.userId,
+  });
+
+  // Send the branded invite email via Resend (replaces Supabase's default).
+  const orgName = await loadOrgName(supabase);
+  const tpl = inviteEmailTemplate({
+    recipientName: fullName,
+    role: "borrower",
+    inviteUrl: actionLink,
+    orgName,
+  });
+  await queueNotification(supabase, {
+    recipientEmail: borrower.email,
+    recipientUserId: invitedUser.id,
+    subject: tpl.subject,
+    body: tpl.text,
+    html: tpl.html,
+    eventType: "user.invited",
   });
 
   revalidatePath(`/admin/borrowers/${borrowerId}`);
@@ -110,13 +145,19 @@ export async function inviteInvestor(investorId: string) {
   if (investor.user_id) throw new Error("Investor is already linked");
 
   const redirectTo = `${getAppBaseUrl()}/reset-password`;
-  const { data: invited, error: inviteError } =
-    await admin.auth.admin.inviteUserByEmail(investor.email, {
-      redirectTo,
-      data: { role: "investor" },
+  const { data: linkData, error: linkError } =
+    await admin.auth.admin.generateLink({
+      type: "invite",
+      email: investor.email,
+      options: {
+        redirectTo,
+        data: { role: "investor" },
+      },
     });
-  if (inviteError) throw new Error(inviteError.message);
-  if (!invited.user) throw new Error("Invite did not return a user");
+  if (linkError) throw new Error(linkError.message);
+  const invitedUser = linkData?.user;
+  const actionLink = linkData?.properties?.action_link;
+  if (!invitedUser || !actionLink) throw new Error("Invite did not return a user");
 
   const fullName =
     investor.investor_type === "entity"
@@ -124,7 +165,7 @@ export async function inviteInvestor(investorId: string) {
       : investor.full_name;
 
   await admin.from("profiles").upsert({
-    id: invited.user.id,
+    id: invitedUser.id,
     role: "investor",
     full_name: fullName || investor.email,
     email: investor.email,
@@ -133,15 +174,31 @@ export async function inviteInvestor(investorId: string) {
 
   await admin
     .from("investors")
-    .update({ user_id: invited.user.id })
+    .update({ user_id: invitedUser.id })
     .eq("id", investorId);
 
   await admin.from("audit_log").insert({
     table_name: "investors",
     record_id: investorId,
     action: "update",
-    new_values: { invited_email: investor.email, linked_user_id: invited.user.id },
+    new_values: { invited_email: investor.email, linked_user_id: invitedUser.id },
     performed_by: caller.userId,
+  });
+
+  const orgName = await loadOrgName(supabase);
+  const tpl = inviteEmailTemplate({
+    recipientName: fullName || investor.email,
+    role: "investor",
+    inviteUrl: actionLink,
+    orgName,
+  });
+  await queueNotification(supabase, {
+    recipientEmail: investor.email,
+    recipientUserId: invitedUser.id,
+    subject: tpl.subject,
+    body: tpl.text,
+    html: tpl.html,
+    eventType: "user.invited",
   });
 
   revalidatePath(`/admin/investors/${investorId}`);

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { decryptFieldSafe } from "@/lib/crypto";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -48,6 +50,26 @@ export default async function BorrowerDetailPage({
 
   if (!borrower) notFound();
 
+  // Encrypted PII columns are gated to service_role; fetch separately and
+  // surface only the last-four to the client. The reveal action audit-logs
+  // access of the full value.
+  const admin = createAdminClient();
+  let ssnLastFour: string | null = null;
+  let einLastFour: string | null = null;
+  if (admin) {
+    const { data: pii } = await admin
+      .from("borrowers")
+      .select("ssn_encrypted, ein_encrypted")
+      .eq("id", id)
+      .single();
+    if (pii) {
+      const ssn = await decryptFieldSafe(pii.ssn_encrypted);
+      const ein = await decryptFieldSafe(pii.ein_encrypted);
+      ssnLastFour = ssn ? ssn.replace(/\D/g, "").slice(-4) || null : null;
+      einLastFour = ein ? ein.replace(/\D/g, "").slice(-4) || null : null;
+    }
+  }
+
   const displayName = borrowerDisplayName(borrower);
 
   return (
@@ -70,7 +92,11 @@ export default async function BorrowerDetailPage({
               <CardTitle className="text-sm">Profile</CardTitle>
             </CardHeader>
             <CardContent>
-              <BorrowerEditForm borrower={borrower} />
+              <BorrowerEditForm
+                borrower={borrower}
+                ssn_last_four={ssnLastFour}
+                ein_last_four={einLastFour}
+              />
             </CardContent>
           </Card>
         </div>

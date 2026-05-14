@@ -1,8 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/auth/require-staff";
+import { encryptField } from "@/lib/crypto";
 
 export async function updateBorrower(
   borrowerId: string,
@@ -44,17 +46,55 @@ export async function updateBorrower(
     update.last_name = null;
   }
 
-  const { error } = await supabase
+  // SSN / EIN: only updated when a non-empty value is submitted. Strip
+  // non-digits and validate length before encrypting. Empty submission keeps
+  // the existing encrypted value.
+  const ssnRaw = (formData.get("ssn") as string | null)?.trim();
+  if (ssnRaw && borrowerType === "individual") {
+    const digits = ssnRaw.replace(/\D/g, "");
+    if (digits.length !== 9) {
+      throw new Error("SSN must be 9 digits");
+    }
+    update.ssn_encrypted = await encryptField(digits);
+  }
+  const einRaw = (formData.get("ein") as string | null)?.trim();
+  if (einRaw && borrowerType === "entity") {
+    const digits = einRaw.replace(/\D/g, "");
+    if (digits.length !== 9) {
+      throw new Error("EIN must be 9 digits");
+    }
+    update.ein_encrypted = await encryptField(digits);
+  }
+
+  // Column-level grants block writes to the encrypted columns from the
+  // authenticated role, so the write goes through the service-role client.
+  // requireStaff above gates who can reach this code path.
+  const hasEncryptedWrite =
+    "ssn_encrypted" in update || "ein_encrypted" in update;
+  const writer = hasEncryptedWrite
+    ? createAdminClient()
+    : null;
+  if (hasEncryptedWrite && !writer) {
+    throw new Error("Service role not configured");
+  }
+
+  const client = writer ?? supabase;
+  const { error } = await client
     .from("borrowers")
     .update(update)
     .eq("id", borrowerId);
   if (error) throw new Error(error.message);
 
+  // Don't log encrypted blobs into the audit_log — flag the fields touched.
+  const auditValues: Record<string, unknown> = { ...update };
+  if ("ssn_encrypted" in auditValues) auditValues.ssn_encrypted = "[updated]";
+  if ("ein_encrypted" in auditValues) auditValues.ein_encrypted = "[updated]";
+
   await supabase.from("audit_log").insert({
     table_name: "borrowers",
     record_id: borrowerId,
     action: "update",
-    new_values: update,
+    new_values: auditValues,
     performed_by: caller.userId,
   });
 

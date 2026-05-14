@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { updateBorrower } from "./borrower-actions";
+import { revealBorrowerSSN, revealBorrowerEIN } from "./reveal-actions";
 
 interface Borrower {
   id: string;
@@ -28,7 +29,15 @@ interface Borrower {
   notes: string | null;
 }
 
-export function BorrowerEditForm({ borrower }: { borrower: Borrower }) {
+export function BorrowerEditForm({
+  borrower,
+  ssn_last_four,
+  ein_last_four,
+}: {
+  borrower: Borrower;
+  ssn_last_four: string | null;
+  ein_last_four: string | null;
+}) {
   const [borrowerType, setBorrowerType] = useState(borrower.borrower_type);
   const [status, action, pending] = useActionState(
     async (_prev: string | null, formData: FormData) => {
@@ -93,6 +102,16 @@ export function BorrowerEditForm({ borrower }: { borrower: Borrower }) {
                 defaultValue={borrower.credit_score || ""}
               />
             </div>
+            <div className="space-y-2 sm:col-span-2">
+              <SensitiveField
+                label="SSN"
+                inputName="ssn"
+                lastFour={ssn_last_four}
+                mask={(l4) => `•••-••-${l4}`}
+                placeholderFormat="XXX-XX-XXXX"
+                onReveal={() => revealBorrowerSSN(borrower.id)}
+              />
+            </div>
           </>
         ) : (
           <>
@@ -112,6 +131,16 @@ export function BorrowerEditForm({ borrower }: { borrower: Borrower }) {
                 name="formation_state"
                 maxLength={2}
                 defaultValue={borrower.formation_state || ""}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <SensitiveField
+                label="EIN"
+                inputName="ein"
+                lastFour={ein_last_four}
+                mask={(l4) => `••-•••${l4}`}
+                placeholderFormat="XX-XXXXXXX"
+                onReveal={() => revealBorrowerEIN(borrower.id)}
               />
             </div>
           </>
@@ -173,5 +202,103 @@ export function BorrowerEditForm({ borrower }: { borrower: Borrower }) {
         )}
       </div>
     </form>
+  );
+}
+
+/**
+ * Masked-by-default sensitive field. Empty submission preserves existing value.
+ * "Reveal" calls a server action that audit-logs the access and returns plaintext.
+ */
+export function SensitiveField({
+  label,
+  inputName,
+  lastFour,
+  mask,
+  placeholderFormat,
+  onReveal,
+}: {
+  label: string;
+  inputName: string;
+  lastFour: string | null;
+  mask: (lastFour: string) => string;
+  placeholderFormat: string;
+  onReveal: () => Promise<string | null>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const [revealing, setRevealing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const hasExisting = !!lastFour;
+
+  async function handleReveal() {
+    setError(null);
+    setRevealing(true);
+    try {
+      const plaintext = await onReveal();
+      if (plaintext) {
+        setValue(plaintext);
+        setEditing(true);
+      } else {
+        setError("No value on file");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to reveal");
+    } finally {
+      setRevealing(false);
+    }
+  }
+
+  function handleHide() {
+    setEditing(false);
+    setValue("");
+    setError(null);
+  }
+
+  return (
+    <>
+      <Label htmlFor={inputName}>{label}</Label>
+      {editing || !hasExisting ? (
+        <div className="flex items-center gap-2">
+          <Input
+            id={inputName}
+            name={inputName}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={placeholderFormat}
+            autoComplete="off"
+          />
+          {hasExisting && (
+            <Button type="button" variant="outline" size="sm" onClick={handleHide}>
+              Hide
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <Input
+            value={mask(lastFour!)}
+            readOnly
+            className="font-mono"
+            aria-label={`${label} (masked)`}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleReveal}
+            disabled={revealing}
+          >
+            {revealing ? "..." : "Reveal"}
+          </Button>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {hasExisting
+          ? "Leave blank to keep current value. Reveal logs an access entry."
+          : `Enter ${label}. Stored encrypted at rest.`}
+      </p>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </>
   );
 }

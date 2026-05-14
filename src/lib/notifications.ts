@@ -9,6 +9,13 @@ interface QueueArgs {
   recipientUserId?: string | null;
   subject: string;
   body: string;
+  /**
+   * Optional HTML body for branded emails. Not persisted to `notifications`
+   * (the table only stores `body` for the audit trail) — used solely for
+   * delivery. Retries via `sendPendingNotifications` will fall back to the
+   * text-only body.
+   */
+  html?: string;
   eventType: string;
   relatedLoanId?: string | null;
 }
@@ -91,7 +98,8 @@ export async function queueNotification(
         to: args.recipientEmail,
         subject: args.subject,
         text: args.body,
-      });
+        ...(args.html ? { html: args.html } : {}),
+      } as Parameters<typeof resend.emails.send>[0]);
       sendError = error ? error.message || String(error) : null;
       if (!sendError && sendData?.id) {
         await supabase

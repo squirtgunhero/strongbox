@@ -139,7 +139,7 @@ export default function ResetPasswordPage() {
           <Button
             type="submit"
             disabled={loading || !checks.every((c) => c.ok)}
-            className="mt-1 h-10 rounded-md text-[13.5px] font-medium"
+            className="mt-1 h-10 rounded-md bg-foreground text-background text-[13.5px] font-medium hover:bg-foreground/90 disabled:bg-muted-foreground/40"
           >
             {loading ? "Updating…" : "Update password"}
           </Button>

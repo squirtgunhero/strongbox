@@ -103,7 +103,7 @@ export default function LoginPage() {
         <Button
           type="submit"
           disabled={loading || !email || !password}
-          className="mt-1 h-10 rounded-md text-[13.5px] font-medium"
+          className="mt-1 h-10 rounded-md bg-foreground text-background text-[13.5px] font-medium hover:bg-foreground/90 disabled:bg-muted-foreground/40"
         >
           {loading ? "Signing in…" : "Sign in"}
         </Button>
@@ -111,7 +111,12 @@ export default function LoginPage() {
 
       <div className="border-t pt-4 text-center text-[11.5px] text-muted-foreground">
         Don&apos;t have an account?{" "}
-        <span className="text-foreground">Contact your administrator</span>
+        <Link
+          href="mailto:support@strongbox.com"
+          className="text-foreground hover:underline"
+        >
+          Contact your administrator
+        </Link>
       </div>
     </div>
   );

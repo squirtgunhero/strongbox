@@ -29,7 +29,12 @@ export default function AuthLayout({
       </header>
 
       <main className="flex flex-1 items-center justify-center px-6 pb-16 pt-4">
-        <div className="w-full max-w-[380px]">{children}</div>
+        <div
+          className="w-full max-w-[400px] rounded-xl border bg-card px-8 py-10 shadow-sm"
+          style={{ "--ring": "oklch(0.55 0.13 245)" } as React.CSSProperties}
+        >
+          {children}
+        </div>
       </main>
 
       <footer className="border-t px-6 py-4">

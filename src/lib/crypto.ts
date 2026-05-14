@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { randomBytes, createCipheriv, createDecipheriv } from "crypto";
 

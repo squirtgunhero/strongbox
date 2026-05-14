@@ -2,13 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireStaff } from "@/lib/auth/require-staff";
 
 export async function recordLateFee(loanId: string, formData: FormData) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const amount = parseFloat(formData.get("amount") as string);
   const dueDate = formData.get("due_date") as string;
@@ -28,7 +26,7 @@ export async function recordLateFee(loanId: string, formData: FormData) {
     due_date: dueDate,
     received_date: null, // outstanding until collected
     notes,
-    recorded_by: user.id,
+    recorded_by: caller.userId,
   });
   if (error) throw new Error(error.message);
 
@@ -37,7 +35,7 @@ export async function recordLateFee(loanId: string, formData: FormData) {
     record_id: loanId,
     action: "insert",
     new_values: { payment_type: "late_fee", amount, due_date: dueDate },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath(`/admin/loans/${loanId}`);

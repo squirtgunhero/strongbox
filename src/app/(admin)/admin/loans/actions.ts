@@ -4,13 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { queueNotification } from "@/lib/notifications";
+import { requireStaff } from "@/lib/auth/require-staff";
 
 export async function createLoan(formData: FormData) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   // State licensure guardrail
   const state = (formData.get("address_state") as string)?.toUpperCase();
@@ -85,7 +83,7 @@ export async function createLoan(formData: FormData) {
       points: parseFloat(formData.get("points") as string) / 100 || null,
       day_count: (formData.get("day_count") as string) || "actual_360",
       term_months: parseInt(formData.get("term_months") as string),
-      loan_officer_id: user.id,
+      loan_officer_id: caller.userId,
     })
     .select()
     .single();
@@ -107,7 +105,7 @@ export async function createLoan(formData: FormData) {
     record_id: loan.id,
     action: "insert",
     new_values: { status: loan.status, loan_amount: loanAmount },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath("/admin/loans");
@@ -115,11 +113,8 @@ export async function createLoan(formData: FormData) {
 }
 
 export async function updateLoanStatus(loanId: string, newStatus: string) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const { data: existing } = await supabase
     .from("loans")
@@ -164,7 +159,7 @@ export async function updateLoanStatus(loanId: string, newStatus: string) {
     action: "status_change",
     old_values: { status: existing?.status },
     new_values: { status: newStatus },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   // Borrower notifications on key transitions

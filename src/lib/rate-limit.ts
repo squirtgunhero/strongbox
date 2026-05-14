@@ -16,9 +16,15 @@ export async function rateLimit(opts: {
   max: number;
   windowSeconds: number;
 }): Promise<{ allowed: boolean }> {
+  const isProd = process.env.NODE_ENV === "production";
+
   const admin = createAdminClient();
   if (!admin) {
-    console.warn("[rate-limit] service role not configured — failing open");
+    if (isProd) {
+      console.error("[rate-limit] service role not configured — failing closed in production");
+      return { allowed: false };
+    }
+    console.warn("[rate-limit] service role not configured — failing open (dev only)");
     return { allowed: true };
   }
   const { data, error } = await admin.rpc("record_rate_limit_attempt", {
@@ -28,7 +34,11 @@ export async function rateLimit(opts: {
     p_window_seconds: opts.windowSeconds,
   });
   if (error) {
-    console.error("[rate-limit] error checking limit", error);
+    if (isProd) {
+      console.error("[rate-limit] error checking limit — failing closed in production", error);
+      return { allowed: false };
+    }
+    console.error("[rate-limit] error checking limit — failing open (dev only)", error);
     return { allowed: true };
   }
   return { allowed: data === true };

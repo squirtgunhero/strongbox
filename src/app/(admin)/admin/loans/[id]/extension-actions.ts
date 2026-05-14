@@ -2,13 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireStaff } from "@/lib/auth/require-staff";
 
 export async function processExtension(loanId: string, formData: FormData) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const newMaturityDate = formData.get("new_maturity_date") as string;
   const extensionMonths = parseInt(formData.get("extension_months") as string);
@@ -70,7 +68,7 @@ export async function processExtension(loanId: string, formData: FormData) {
       due_date: new Date().toISOString().split("T")[0],
       received_date: null,
       notes: `Extension fee: ${feePoints}% × ${extensionMonths} month extension to ${newMaturityDate}`,
-      recorded_by: user.id,
+      recorded_by: caller.userId,
     });
   }
 
@@ -86,7 +84,7 @@ export async function processExtension(loanId: string, formData: FormData) {
         fee_points: feePoints,
       },
     },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath(`/admin/loans/${loanId}`);

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/lib/auth/require-staff";
 
 function parseConditions(raw: string): string[] {
   return raw
@@ -11,11 +12,8 @@ function parseConditions(raw: string): string[] {
 }
 
 export async function createTemplate(formData: FormData) {
+  await requireAdmin();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const name = ((formData.get("name") as string) || "").trim();
   const raw = (formData.get("conditions") as string) || "";
@@ -33,11 +31,8 @@ export async function createTemplate(formData: FormData) {
 }
 
 export async function updateTemplate(id: string, formData: FormData) {
+  await requireAdmin();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const name = ((formData.get("name") as string) || "").trim();
   const raw = (formData.get("conditions") as string) || "";
@@ -56,11 +51,8 @@ export async function updateTemplate(id: string, formData: FormData) {
 }
 
 export async function deleteTemplate(id: string) {
+  await requireAdmin();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const { data: tpl } = await supabase
     .from("condition_templates")

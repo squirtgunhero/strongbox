@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { queueNotification } from "@/lib/notifications";
+import { requireStaff } from "@/lib/auth/require-staff";
 
 export async function submitPaymentIntent(loanId: string, formData: FormData) {
   const supabase = await createClient();
@@ -27,6 +28,16 @@ export async function submitPaymentIntent(loanId: string, formData: FormData) {
     .select("id")
     .eq("user_id", user.id)
     .maybeSingle();
+
+  // Verify the caller is a borrower linked to this loan
+  if (!borrower) throw new Error("Forbidden: not a borrower");
+  const { data: link } = await supabase
+    .from("loan_borrowers")
+    .select("id")
+    .eq("loan_id", loanId)
+    .eq("borrower_id", borrower.id)
+    .maybeSingle();
+  if (!link) throw new Error("Forbidden: not linked to this loan");
 
   const { data: intent, error } = await supabase
     .from("payment_intents")
@@ -104,11 +115,9 @@ export async function updatePaymentIntentStatus(
   newStatus: "verified" | "cleared" | "rejected",
   reason?: string
 ) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+  const user = { id: caller.userId };
 
   const update: Record<string, unknown> = { status: newStatus };
   if (newStatus === "rejected") update.rejected_reason = reason || null;

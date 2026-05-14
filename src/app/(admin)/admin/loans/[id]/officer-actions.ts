@@ -2,16 +2,14 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireStaff } from "@/lib/auth/require-staff";
 
 export async function reassignLoanOfficer(
   loanId: string,
   newOfficerId: string | null
 ) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const { data: existing } = await supabase
     .from("loans")
@@ -31,7 +29,7 @@ export async function reassignLoanOfficer(
     action: "update",
     old_values: { loan_officer_id: existing?.loan_officer_id },
     new_values: { loan_officer_id: newOfficerId },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath(`/admin/loans/${loanId}`);

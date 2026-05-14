@@ -7,13 +7,11 @@ import { accruedInterest } from "@/lib/calculations/interest";
 import { investorShareOfInterest } from "@/lib/calculations/distributions";
 import { queueNotification } from "@/lib/notifications";
 import type { DayCountConvention } from "@/lib/types";
+import { requireStaff } from "@/lib/auth/require-staff";
 
 export async function recordPayment(loanId: string, formData: FormData) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const amount = parseFloat(formData.get("amount") as string);
   const paymentType = formData.get("payment_type") as string;
@@ -98,7 +96,7 @@ export async function recordPayment(loanId: string, formData: FormData) {
       due_date: dueDate,
       received_date: receivedDate,
       notes: (formData.get("notes") as string) || null,
-      recorded_by: user.id,
+      recorded_by: caller.userId,
     })
     .select("id")
     .single();
@@ -190,7 +188,7 @@ export async function recordPayment(loanId: string, formData: FormData) {
     record_id: loanId,
     action: "insert",
     new_values: { payment_type: paymentType, amount, applied: result },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   // Optionally link to a borrower payment intent and mark it cleared
@@ -209,7 +207,7 @@ export async function recordPayment(loanId: string, formData: FormData) {
       record_id: matchIntentId,
       action: "status_change",
       new_values: { status: "cleared", matched_payment_id: insertedPayment.id },
-      performed_by: user.id,
+      performed_by: caller.userId,
     });
   }
 

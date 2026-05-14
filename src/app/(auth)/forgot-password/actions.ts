@@ -11,6 +11,28 @@ interface SendResult {
 }
 
 /**
+ * Return the canonical app base URL from env, never from client input.
+ */
+function getAppBaseUrl(): string {
+  const configured =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_URL;
+
+  if (!configured) {
+    throw new Error(
+      "Missing app URL configuration. Set NEXT_PUBLIC_APP_URL so password-reset links point to the deployed site."
+    );
+  }
+
+  const withProtocol = configured.startsWith("http")
+    ? configured
+    : `https://${configured}`;
+  return withProtocol.replace(/\/$/, "");
+}
+
+/**
  * Send a password-reset link to the given email. Throttled to 3 attempts per
  * 15 minutes per email, then a longer 10/hour cooldown — values are
  * deliberately tight to deter email-bomb attacks. Supabase's own auth
@@ -18,7 +40,7 @@ interface SendResult {
  */
 export async function sendPasswordReset(
   email: string,
-  redirectBaseUrl: string
+  _redirectBaseUrl: string
 ): Promise<SendResult> {
   const normalized = email.trim().toLowerCase();
   if (!normalized || !normalized.includes("@")) {
@@ -48,7 +70,9 @@ export async function sendPasswordReset(
     return { ok: false };
   }
 
-  const redirectTo = `${redirectBaseUrl.replace(/\/$/, "")}/reset-password`;
+  // Ignore client-supplied redirectBaseUrl — always use the server-configured
+  // app URL to prevent open-redirect attacks.
+  const redirectTo = `${getAppBaseUrl()}/reset-password`;
   const { error } = await admin.auth.resetPasswordForEmail(normalized, {
     redirectTo,
   });

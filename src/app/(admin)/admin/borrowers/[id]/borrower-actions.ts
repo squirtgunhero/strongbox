@@ -2,16 +2,14 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireStaff } from "@/lib/auth/require-staff";
 
 export async function updateBorrower(
   borrowerId: string,
   formData: FormData
 ) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const borrowerType = formData.get("borrower_type") as string;
   const intOrNull = (key: string): number | null => {
@@ -57,7 +55,7 @@ export async function updateBorrower(
     record_id: borrowerId,
     action: "update",
     new_values: update,
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath(`/admin/borrowers/${borrowerId}`);

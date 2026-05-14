@@ -2,13 +2,23 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { getCaller } from "@/lib/auth/require-staff";
 
 export async function updateInsurance(loanId: string, formData: FormData) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+  const caller = await getCaller();
+  const user = { id: caller.userId };
+
+  // Staff can update any loan's insurance; borrowers can only update their own
+  if (caller.role !== "admin" && caller.role !== "loan_officer") {
+    const { data: link } = await supabase
+      .from("loan_borrowers")
+      .select("id, borrowers!inner(user_id)")
+      .eq("loan_id", loanId)
+      .eq("borrowers.user_id", caller.userId)
+      .maybeSingle();
+    if (!link) throw new Error("Forbidden: not authorized for this loan");
+  }
 
   const numOrNull = (key: string): number | null => {
     const v = formData.get(key) as string;

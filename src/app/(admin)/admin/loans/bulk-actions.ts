@@ -3,16 +3,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { updateLoanStatus } from "./actions";
+import { requireStaff } from "@/lib/auth/require-staff";
 
 export async function bulkAssignOfficer(
   loanIds: string[],
   newOfficerId: string | null
 ) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   if (loanIds.length === 0) throw new Error("No loans selected");
 
@@ -28,7 +26,7 @@ export async function bulkAssignOfficer(
     record_id: id,
     action: "update",
     new_values: { loan_officer_id: newOfficerId, bulk: true },
-    performed_by: user.id,
+    performed_by: caller.userId,
   }));
   await supabase.from("audit_log").insert(auditRows);
 
@@ -37,6 +35,7 @@ export async function bulkAssignOfficer(
 }
 
 export async function bulkChangeStatus(loanIds: string[], newStatus: string) {
+  await requireStaff();
   if (loanIds.length === 0) throw new Error("No loans selected");
 
   let succeeded = 0;

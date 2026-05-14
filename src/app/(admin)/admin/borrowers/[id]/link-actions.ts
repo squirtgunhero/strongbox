@@ -2,16 +2,14 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/lib/auth/require-staff";
 
 export async function linkBorrowerToAuthUser(
   borrowerId: string,
   formData: FormData
 ) {
+  const caller = await requireAdmin();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const authUserId = (formData.get("user_id") as string)?.trim();
   if (!authUserId) throw new Error("User UUID required");
@@ -47,7 +45,7 @@ export async function linkBorrowerToAuthUser(
     record_id: borrowerId,
     action: "update",
     new_values: { linked_user_id: authUserId },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath("/admin/borrowers");
@@ -57,11 +55,8 @@ export async function linkInvestorToAuthUser(
   investorId: string,
   formData: FormData
 ) {
+  const caller = await requireAdmin();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const authUserId = (formData.get("user_id") as string)?.trim();
   if (!authUserId) throw new Error("User UUID required");
@@ -95,7 +90,7 @@ export async function linkInvestorToAuthUser(
     record_id: investorId,
     action: "update",
     new_values: { linked_user_id: authUserId },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath(`/admin/investors/${investorId}`);

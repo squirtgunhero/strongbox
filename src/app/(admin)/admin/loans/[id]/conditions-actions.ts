@@ -2,17 +2,15 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireStaff } from "@/lib/auth/require-staff";
 
 export async function addCondition(
   loanId: string,
   description: string,
   dueDate?: string | null
 ) {
+  await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
   if (!description.trim()) throw new Error("Description required");
 
   const { error } = await supabase.from("loan_conditions").insert({
@@ -30,11 +28,8 @@ export async function setConditionDueDate(
   loanId: string,
   dueDate: string | null
 ) {
+  await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const { error } = await supabase
     .from("loan_conditions")
@@ -50,18 +45,15 @@ export async function toggleCondition(
   loanId: string,
   satisfied: boolean
 ) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const { error } = await supabase
     .from("loan_conditions")
     .update({
       is_satisfied: satisfied,
       satisfied_at: satisfied ? new Date().toISOString() : null,
-      satisfied_by: satisfied ? user.id : null,
+      satisfied_by: satisfied ? caller.userId : null,
     })
     .eq("id", conditionId);
   if (error) throw new Error(error.message);
@@ -73,11 +65,8 @@ export async function applyConditionTemplate(
   loanId: string,
   templateId: string
 ) {
+  await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const { data: template } = await supabase
     .from("condition_templates")
@@ -98,11 +87,8 @@ export async function applyConditionTemplate(
 }
 
 export async function deleteCondition(conditionId: string, loanId: string) {
+  await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const { error } = await supabase
     .from("loan_conditions")

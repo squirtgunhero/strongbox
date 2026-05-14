@@ -22,10 +22,12 @@ export default async function TermSheetPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("role, full_name")
-    .eq("id", user!.id)
+    .eq("id", user.id)
     .single();
 
   if (!profile || !["admin", "loan_officer"].includes(profile.role)) {

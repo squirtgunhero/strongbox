@@ -5,6 +5,7 @@ import { queueNotification } from "@/lib/notifications";
 import { accruedInterest } from "@/lib/calculations/interest";
 import { revalidatePath } from "next/cache";
 import type { DayCountConvention } from "@/lib/types";
+import { requireAdmin } from "@/lib/auth/require-staff";
 
 interface BatchResult {
   generated: number;
@@ -21,11 +22,8 @@ export async function generateMonthlyStatements(
   periodStart: string,
   periodEnd: string
 ): Promise<BatchResult> {
+  const caller = await requireAdmin();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const { data: loans } = await supabase
     .from("loans")
@@ -94,7 +92,7 @@ export async function generateMonthlyStatements(
       skipped,
       failed,
     },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath("/admin/notifications");

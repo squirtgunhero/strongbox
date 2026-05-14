@@ -135,20 +135,20 @@ export function MfaPanel({ currentLevel, existingFactor }: Props) {
               below.
             </p>
           </div>
-          {/* Supabase returns the QR as data URL or an svg payload */}
-          {enrollment.qr.startsWith("data:") ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={enrollment.qr}
-              alt="MFA QR code"
-              className="h-44 w-44 rounded-md border bg-white p-2"
-            />
-          ) : (
-            <div
-              className="h-44 w-44 rounded-md border bg-white p-2"
-              dangerouslySetInnerHTML={{ __html: enrollment.qr }}
-            />
-          )}
+          {/* Render QR as an <img> to avoid XSS from dangerouslySetInnerHTML.
+             Supabase returns either a data: URL or raw SVG string. For raw SVG
+             we convert to a data URI so it's rendered as an image, not parsed
+             as HTML. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={
+              enrollment.qr.startsWith("data:")
+                ? enrollment.qr
+                : `data:image/svg+xml;base64,${btoa(enrollment.qr)}`
+            }
+            alt="MFA QR code"
+            className="h-44 w-44 rounded-md border bg-white p-2"
+          />
           <div className="mono text-[11.5px] text-muted-foreground">
             Or enter the secret manually:&nbsp;
             <span className="text-foreground">{enrollment.secret}</span>

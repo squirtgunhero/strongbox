@@ -42,9 +42,10 @@ export async function POST(request: NextRequest) {
       return new Response("Invalid signature", { status: 401 });
     }
   } else {
-    console.warn(
-      "[docusign-webhook] DOCUSIGN_WEBHOOK_HMAC_KEY not set — accepting unsigned events. Set it before production."
+    console.error(
+      "[docusign-webhook] DOCUSIGN_WEBHOOK_HMAC_KEY not set — rejecting request"
     );
+    return new Response("Webhook HMAC key not configured", { status: 500 });
   }
 
   let payload: {

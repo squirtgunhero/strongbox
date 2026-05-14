@@ -4,13 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { validatePositionAgainstLoan } from "@/lib/calculations/distributions";
+import { requireStaff } from "@/lib/auth/require-staff";
 
 export async function createInvestor(formData: FormData) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const investorType = formData.get("investor_type") as string;
   const data: Record<string, unknown> = {
@@ -39,7 +37,7 @@ export async function createInvestor(formData: FormData) {
     record_id: investor.id,
     action: "insert",
     new_values: { investor_type: investorType },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath("/admin/investors");
@@ -47,11 +45,8 @@ export async function createInvestor(formData: FormData) {
 }
 
 export async function addInvestorPosition(loanId: string, formData: FormData) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const investorId = formData.get("investor_id") as string;
   const amount = parseFloat(formData.get("amount") as string);
@@ -89,7 +84,7 @@ export async function addInvestorPosition(loanId: string, formData: FormData) {
     record_id: loanId,
     action: "insert",
     new_values: { investor_id: investorId, amount, percentage },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath(`/admin/loans/${loanId}`);

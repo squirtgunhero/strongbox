@@ -3,13 +3,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { validateUpload } from "@/lib/uploads/validate";
+import { requireStaff } from "@/lib/auth/require-staff";
 
 export async function uploadDocument(loanId: string, formData: FormData) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const file = formData.get("file") as File | null;
   const category = (formData.get("category") as string) || "other";
@@ -43,7 +41,7 @@ export async function uploadDocument(loanId: string, formData: FormData) {
       storage_path: storagePath,
       size_bytes: file.size,
       mime_type: file.type,
-      uploaded_by: user.id,
+      uploaded_by: caller.userId,
     })
     .select("id")
     .single();
@@ -60,18 +58,15 @@ export async function uploadDocument(loanId: string, formData: FormData) {
     record_id: docRow.id,
     action: "insert",
     new_values: { loan_id: loanId, filename: file.name, category },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath(`/admin/loans/${loanId}`);
 }
 
 export async function getDocumentSignedUrl(storagePath: string) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   // Look up the document row first so we can audit by its UUID. RLS will reject
   // the lookup if the caller doesn't have access to this loan's documents.
@@ -95,7 +90,7 @@ export async function getDocumentSignedUrl(storagePath: string) {
     record_id: docRow.id,
     action: "access",
     new_values: { loan_id: docRow.loan_id, filename: docRow.filename },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   return data.signedUrl;

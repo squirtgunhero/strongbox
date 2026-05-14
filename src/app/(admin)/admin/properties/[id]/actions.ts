@@ -2,13 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireStaff } from "@/lib/auth/require-staff";
 
 export async function updateProperty(propertyId: string, formData: FormData) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const numOrNull = (key: string): number | null => {
     const v = formData.get(key) as string;
@@ -53,7 +51,7 @@ export async function updateProperty(propertyId: string, formData: FormData) {
     record_id: propertyId,
     action: "update",
     new_values: update,
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath(`/admin/properties/${propertyId}`);

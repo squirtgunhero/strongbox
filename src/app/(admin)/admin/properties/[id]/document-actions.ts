@@ -3,16 +3,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { validateUpload } from "@/lib/uploads/validate";
+import { requireStaff } from "@/lib/auth/require-staff";
 
 export async function uploadPropertyDocument(
   propertyId: string,
   formData: FormData
 ) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const file = formData.get("file") as File | null;
   const category = (formData.get("category") as string) || "other";
@@ -38,7 +36,7 @@ export async function uploadPropertyDocument(
       storage_path: storagePath,
       size_bytes: file.size,
       mime_type: file.type,
-      uploaded_by: user.id,
+      uploaded_by: caller.userId,
     });
   if (insertError) {
     await supabase.storage.from("loan-documents").remove([storagePath]);
@@ -50,7 +48,7 @@ export async function uploadPropertyDocument(
     record_id: propertyId,
     action: "insert",
     new_values: { filename: file.name, category },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath(`/admin/properties/${propertyId}`);
@@ -60,11 +58,8 @@ export async function deletePropertyDocument(
   documentId: string,
   propertyId: string
 ) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const { data: doc } = await supabase
     .from("property_documents")
@@ -82,7 +77,7 @@ export async function deletePropertyDocument(
     record_id: propertyId,
     action: "update",
     new_values: { deleted: documentId },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath(`/admin/properties/${propertyId}`);

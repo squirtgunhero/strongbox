@@ -4,6 +4,23 @@
     {
       "path": "/api/cron/monthly-statements",
       "schedule": "0 12 1 * *"
+    },
+    {
+      "path": "/api/cron/backup-database",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/backup-storage",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/backup-rotate",
+      "schedule": "0 4 * * 0"
     }
-  ]
+  ],
+  "functions": {
+    "src/app/api/cron/backup-database/route.ts": { "maxDuration": 300 },
+    "src/app/api/cron/backup-storage/route.ts": { "maxDuration": 300 },
+    "src/app/api/cron/backup-rotate/route.ts": { "maxDuration": 60 }
+  }
 }

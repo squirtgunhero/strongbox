@@ -11,6 +11,7 @@ import {
   BarChart3,
   ShieldCheck,
   Bell,
+  UserCog,
 } from "lucide-react";
 
 type AdminNavItem = {
@@ -104,6 +105,12 @@ export const adminNavSections: AdminNavSection[] = [
         href: "/admin/audit",
         description: "Inspect immutable actions across the platform.",
         icon: ShieldCheck,
+      },
+      {
+        title: "Users",
+        href: "/admin/users",
+        description: "Manage staff accounts, roles, and access.",
+        icon: UserCog,
       },
       {
         title: "Settings",

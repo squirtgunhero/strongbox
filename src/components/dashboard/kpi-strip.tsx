@@ -1,4 +1,12 @@
-import { Sparkline } from "@/components/sparkline";
+import Link from "next/link";
+import {
+  Landmark,
+  Percent,
+  Gauge,
+  Activity,
+  ArrowRight,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface KpiCell {
@@ -16,104 +24,147 @@ interface KpiStripProps {
 }
 
 /**
- * KPI strip — Mercury/Modern Treasury style. One bordered container with
- * internal hairline dividers. No card-per-metric chrome. Sparklines render
- * as a thin neutral line at the bottom of each cell, contained by overflow.
+ * Per-label presentation: icon, drill-down link, and the "featured" flag
+ * that fills the first card with the brand accent. Driven off the stable
+ * KPI labels so the dashboard page doesn't have to thread icons through.
  */
+const KPI_META: Record<
+  string,
+  { icon: LucideIcon; href: string; cta: string; featured?: boolean }
+> = {
+  Deployed: {
+    icon: Landmark,
+    href: "/admin/loans?status=active",
+    cta: "View active book",
+    featured: true,
+  },
+  "Weighted rate": {
+    icon: Percent,
+    href: "/admin/reports",
+    cta: "Rate breakdown",
+  },
+  "Avg LTV (as-is)": {
+    icon: Gauge,
+    href: "/admin/loans",
+    cta: "Collateral detail",
+  },
+  Performing: {
+    icon: Activity,
+    href: "/admin/servicing",
+    cta: "Servicing queue",
+  },
+};
+
+const FALLBACK_META = {
+  icon: Activity,
+  href: "/admin",
+  cta: "View detail",
+  featured: false,
+} as const;
+
 export function KpiStrip({ cells }: KpiStripProps) {
   return (
-    <div className="grid grid-cols-2 overflow-hidden rounded-xl border bg-card shadow-[var(--shadow-card)] xl:grid-cols-4">
-      {cells.map((cell, i) => (
-        <div
-          key={cell.label}
-          className={cn(
-            "flex min-w-0 flex-col gap-1.5 overflow-hidden px-4 py-3.5 transition-colors hover:bg-muted/40",
-            // hairline dividers between cells, but no border on first column rows
-            i % 2 === 1 && "border-l",
-            "xl:border-l",
-            i === 0 && "xl:border-l-0",
-            i < (cells.length - (cells.length % 2 || 2)) && "border-b xl:border-b-0"
-          )}
-        >
-          <div className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
-            {cell.label}
-          </div>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {cells.map((cell) => {
+        const meta = KPI_META[cell.label] ?? FALLBACK_META;
+        const featured = "featured" in meta && meta.featured;
+        const Icon = meta.icon;
 
-          <div className="flex min-w-0 items-baseline gap-1.5 whitespace-nowrap">
-            <div
+        return (
+          <div
+            key={cell.label}
+            className={cn(
+              "group flex flex-col rounded-2xl shadow-[var(--shadow-card)] transition-shadow hover:shadow-[var(--shadow-card-hover)]",
+              featured
+                ? "bg-primary text-primary-foreground"
+                : "bg-card ring-1 ring-border/60"
+            )}
+          >
+            <div className="flex flex-1 flex-col gap-3 p-5">
+              <div className="flex items-center justify-between">
+                <div
+                  className={cn(
+                    "grid h-9 w-9 place-items-center rounded-xl",
+                    featured
+                      ? "bg-white/15 text-primary-foreground"
+                      : "bg-primary/10 text-primary"
+                  )}
+                >
+                  <Icon className="h-[18px] w-[18px]" />
+                </div>
+                {cell.delta && (
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[11px] font-semibold tabular",
+                      featured
+                        ? "bg-white/15 text-primary-foreground"
+                        : cell.delta.dir === "up"
+                          ? "bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]"
+                          : cell.delta.dir === "down"
+                            ? "bg-[color:var(--status-danger-bg)] text-[color:var(--status-danger)]"
+                            : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {cell.delta.dir === "up"
+                      ? "↑ "
+                      : cell.delta.dir === "down"
+                        ? "↓ "
+                        : "→ "}
+                    {cell.delta.text}
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-1 flex flex-col gap-1">
+                <div
+                  className={cn(
+                    "text-[12.5px] font-medium",
+                    featured
+                      ? "text-primary-foreground/80"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {cell.label}
+                </div>
+                <div
+                  className={cn(
+                    "tabular truncate text-[28px] font-semibold leading-[1.1] tracking-[-0.02em]",
+                    !featured && cell.tone === "danger" && "text-[color:var(--status-danger)]",
+                    !featured && cell.tone === "warn" && "text-[color:var(--status-warning)]"
+                  )}
+                >
+                  {cell.value}
+                </div>
+                {cell.sub && (
+                  <div
+                    className={cn(
+                      "truncate text-[11.5px]",
+                      featured
+                        ? "text-primary-foreground/70"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {cell.sub}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Link
+              href={meta.href}
               className={cn(
-                "tabular shrink truncate text-[24px] font-semibold leading-[1.1] tracking-[-0.02em]",
-                cell.tone === "danger" && "text-primary",
-                cell.tone === "warn" && "text-[color:var(--status-warning)]"
+                "flex items-center justify-between rounded-b-2xl border-t px-5 py-3 text-[12px] font-medium transition-colors",
+                featured
+                  ? "border-white/15 text-primary-foreground/90 hover:bg-white/10"
+                  : "border-border/60 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
               )}
             >
-              {cell.value}
-            </div>
-            {cell.delta && (
-              <span
-                className={cn(
-                  "shrink-0 text-[11.5px] font-medium tracking-[-0.005em]",
-                  cell.delta.dir === "up" && "text-[color:var(--status-success)]",
-                  cell.delta.dir === "down" && "text-primary",
-                  cell.delta.dir === "flat" && "text-muted-foreground"
-                )}
-              >
-                {cell.delta.dir === "up" ? "↑" : cell.delta.dir === "down" ? "↓" : "→"}
-                {cell.delta.text}
-              </span>
-            )}
+              {meta.cta}
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Link>
           </div>
-
-          {cell.sub && (
-            <div className="truncate text-[11px] text-muted-foreground">
-              {cell.sub}
-            </div>
-          )}
-
-          {cell.spark && cell.spark.length > 0 && (
-            <div className="mt-1 -mx-0.5 h-[20px] w-full overflow-hidden opacity-60">
-              <SparkSvg data={cell.spark} />
-            </div>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
-
-// Local wrapper that forces the sparkline to fill its container width.
-function SparkSvg({ data }: { data: number[] }) {
-  const w = 240;
-  const h = 20;
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
-  const step = data.length > 1 ? w / (data.length - 1) : w;
-  const points = data
-    .map((v, i) => {
-      const x = i * step;
-      const y = h - ((v - min) / range) * (h - 2) - 1;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-  return (
-    <svg
-      viewBox={`0 0 ${w} ${h}`}
-      preserveAspectRatio="none"
-      className="block h-full w-full"
-    >
-      <polyline
-        points={points}
-        fill="none"
-        stroke="var(--muted-foreground)"
-        strokeWidth={1.25}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-// Keep importing Sparkline so we don't dead-import a file; the inline SVG is
-// more reliable for percent-width containers but the export stays.
-void Sparkline;

@@ -106,7 +106,7 @@ export function DashboardOnboarding({
         </div>
       </div>
 
-      <div className="rounded-2xl border bg-card shadow-[var(--shadow-card)]">
+      <div className="rounded-2xl bg-card ring-1 ring-border/60 shadow-[var(--shadow-card)]">
         <ul className="divide-y">
           {STEPS.map((step) => {
             const Icon = step.icon;

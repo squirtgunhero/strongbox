@@ -61,7 +61,7 @@ export function TodayPanel({
   });
 
   return (
-    <div className="flex min-w-0 flex-col rounded-xl border bg-card shadow-[var(--shadow-card)]">
+    <div className="flex min-w-0 flex-col rounded-2xl bg-card ring-1 ring-border/60 shadow-[var(--shadow-card)]">
       <div className="flex items-center justify-between border-b px-4 py-3.5">
         <div>
           <div className="text-[14px] font-semibold tracking-[-0.01em]">

@@ -15,9 +15,14 @@ const CARD_BG = "#FFFFFF";
 const BORDER = "#DDE0E6";
 const FG = "#0A0A0A";
 const MUTED = "#5C6370";
+// Brand accent — matches the app primary (forest green).
+const ACCENT = "#1B6B4A";
 const SERIF = "Georgia, 'Times New Roman', serif";
+// Single-quote the multi-word family: this string is interpolated into
+// double-quoted style="" attributes, so double quotes here would close the
+// attribute early and silently drop every declaration after font-family.
 const SANS =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
 function shell(args: {
   preheader: string;
@@ -54,18 +59,19 @@ function shell(args: {
                 <div style="font-family:${SANS};font-size:15px;line-height:1.7;color:#333333;">
                   ${args.bodyHtml}
                 </div>
-                <!-- Bulletproof button -->
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:32px auto 0 auto;">
+                <!-- Bulletproof button: visual lives on the <td> so the
+                     button still renders if a client strips <a> styles. -->
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:32px auto 0 auto;">
                   <tr>
-                    <td align="center" style="background:#0A0A0A;border-radius:8px;">
-                      <!--[if mso]><i style="letter-spacing:24px;mso-font-width:-100%;mso-text-raise:12pt">&nbsp;</i><![endif]-->
-                      <a href="${escapeAttr(args.ctaUrl)}" target="_blank" style="display:inline-block;background:#0A0A0A;color:#ffffff;text-decoration:none;font-family:${SANS};font-size:14px;font-weight:600;padding:14px 32px;border-radius:8px;mso-padding-alt:0;text-underline-color:#0A0A0A;">
-                        ${escapeHtml(args.ctaLabel)}
-                      </a>
-                      <!--[if mso]><i style="letter-spacing:24px;mso-font-width:-100%">&nbsp;</i><![endif]-->
+                    <td align="center" bgcolor="${ACCENT}" style="border-radius:8px;background:${ACCENT};mso-padding-alt:14px 36px;">
+                      <a href="${escapeAttr(args.ctaUrl)}" target="_blank" style="display:inline-block;padding:14px 36px;font-family:${SANS};font-size:15px;line-height:1;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">${escapeHtml(args.ctaLabel)}</a>
                     </td>
                   </tr>
                 </table>
+                <div style="font-family:${SANS};font-size:12px;line-height:1.6;color:${MUTED};margin-top:20px;text-align:center;word-break:break-all;">
+                  Or paste this link into your browser:<br />
+                  <a href="${escapeAttr(args.ctaUrl)}" style="color:${ACCENT};text-decoration:underline;">${escapeHtml(args.ctaUrl)}</a>
+                </div>
               </td>
             </tr>
             <!-- Footer -->

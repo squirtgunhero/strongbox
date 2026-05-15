@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { type LoanStatus, LOAN_STATUS_LABELS } from "@/lib/types";
 import { Plus, Download } from "lucide-react";
 import Link from "next/link";
@@ -15,8 +15,6 @@ import { DashboardOnboarding } from "@/components/dashboard/dashboard-onboarding
 import { ConcentrationBanner } from "@/components/dashboard/concentration-banner";
 import { analyzeConcentration } from "@/lib/calculations/concentration";
 import { borrowerDisplayName } from "@/lib/format";
-
-type ViewMode = "live" | "demo";
 
 function formatRelative(iso: string | null | undefined, nowTs: number): string {
   if (!iso) return "—";
@@ -39,12 +37,11 @@ function fmtCompact(n: number): string {
 export default async function AdminDashboard({
   searchParams,
 }: {
-  searchParams: Promise<{ scope?: string; view?: string }>;
+  searchParams: Promise<{ scope?: string }>;
 }) {
   const nowTs = Date.now();
   const today = new Date(nowTs);
   const sp = await searchParams;
-  const viewMode: ViewMode = sp.view === "demo" ? "demo" : "live";
 
   const supabase = await createClient();
   const {
@@ -100,7 +97,7 @@ export default async function AdminDashboard({
   const firstName = profile?.full_name?.trim().split(/\s+/)[0] || "there";
 
   // ZERO data → onboarding only.
-  if (allLoans.length === 0 && viewMode === "live") {
+  if (allLoans.length === 0) {
     return <DashboardOnboarding greeting={`${greeting}, ${firstName}.`} />;
   }
 
@@ -211,115 +208,60 @@ export default async function AdminDashboard({
       ) <= 7
   ).length;
 
-  const isDemo = viewMode === "demo";
-
   // ---------- MODELS ----------
   const eyebrow =
     `${formatDate(today.toISOString().slice(0, 10))} · ${
       profile?.full_name || "Operator"
     }`;
 
-  const stripStats = isDemo
-    ? [
-        { value: 22, label: "in flight" },
-        { value: 2, label: "late", tone: "danger" as const },
-        { value: 2, label: "maturing 30d", tone: "warn" as const },
-      ]
-    : [
-        { value: pipelineLoans.length, label: "in flight" },
-        defaultedLoans.length > 0
-          ? {
-              value: defaultedLoans.length,
-              label: "in default",
-              tone: "danger" as const,
-            }
-          : { value: activeLoans.length, label: "active" },
-        {
-          value: maturingThirty.length,
-          label: "maturing 30d",
-          tone: maturingThirty.length > 0 ? ("warn" as const) : undefined,
-        },
-      ];
+  const stripStats = [
+    { value: pipelineLoans.length, label: "in flight" },
+    defaultedLoans.length > 0
+      ? {
+          value: defaultedLoans.length,
+          label: "in default",
+          tone: "danger" as const,
+        }
+      : { value: activeLoans.length, label: "active" },
+    {
+      value: maturingThirty.length,
+      label: "maturing 30d",
+      tone: maturingThirty.length > 0 ? ("warn" as const) : undefined,
+    },
+  ];
 
-  const kpis = isDemo
-    ? [
-        {
-          label: "Deployed",
-          value: "$18.7M",
-          delta: { dir: "up" as const, text: "+$412k" },
-          sub: "31 active",
-          spark: [12.4, 13.1, 14.0, 14.8, 15.6, 16.2, 17.0, 17.4, 17.9, 18.3, 18.5, 18.7],
-        },
-        {
-          label: "Weighted rate",
-          value: "11.42%",
-          delta: { dir: "up" as const, text: "+18 bps" },
-          sub: "contract",
-          spark: [11.0, 11.05, 11.1, 11.15, 11.2, 11.18, 11.25, 11.3, 11.35, 11.42],
-        },
-        {
-          label: "Avg LTV (as-is)",
-          value: "63.1%",
-          sub: "policy 75%",
-          spark: [60, 61, 62, 63, 63, 62, 63, 63, 63, 63.1],
-        },
-        {
-          label: "Performing",
-          value: "29/31",
-          delta: { dir: "down" as const, text: "2 late" },
-          sub: "93.5% current",
-          spark: [31, 31, 31, 31, 30, 31, 30, 30, 29, 29],
-        },
-      ]
-    : [
-        {
-          label: "Deployed",
-          value: totalDeployed > 0 ? fmtCompact(totalDeployed) : "—",
-          sub: `${activeLoans.length} active`,
-          spark:
-            totalDeployed > 0
-              ? Array.from({ length: 12 }, (_, i) =>
-                  totalDeployed * (0.6 + (i / 12) * 0.4) / 1_000_000
-                )
-              : [],
-        },
-        {
-          label: "Weighted rate",
-          value: weightedRate > 0 ? `${(weightedRate * 100).toFixed(2)}%` : "—",
-          sub: activeLoans.length > 0 ? "contract" : "no data yet",
-          spark:
-            weightedRate > 0
-              ? [
-                  weightedRate * 0.98,
-                  weightedRate * 0.99,
-                  weightedRate * 0.995,
-                  weightedRate * 0.99,
-                  weightedRate * 1.005,
-                  weightedRate,
-                ]
-              : [],
-        },
-        {
-          label: "Avg LTV (as-is)",
-          value: avgLtv > 0 ? `${(avgLtv * 100).toFixed(1)}%` : "—",
-          sub: "policy 75%",
-          tone:
-            avgLtv > 0.75
-              ? ("warn" as const)
-              : ("neutral" as const),
-        },
-        {
-          label: "Performing",
-          value:
-            activeLoans.length > 0
-              ? `${statusCounts.active || 0}/${activeLoans.length}`
-              : "—",
-          sub:
-            activeLoans.length > 0
-              ? `${(((statusCounts.active || 0) / Math.max(activeLoans.length, 1)) * 100).toFixed(0)}% current`
-              : "no active book",
-        },
-      ];
+  const kpis = [
+    {
+      label: "Deployed",
+      value: totalDeployed > 0 ? fmtCompact(totalDeployed) : "—",
+      sub: `${activeLoans.length} active`,
+    },
+    {
+      label: "Weighted rate",
+      value: weightedRate > 0 ? `${(weightedRate * 100).toFixed(2)}%` : "—",
+      sub: activeLoans.length > 0 ? "contract" : "no data yet",
+    },
+    {
+      label: "Avg LTV (as-is)",
+      value: avgLtv > 0 ? `${(avgLtv * 100).toFixed(1)}%` : "—",
+      sub: "policy 75%",
+      tone:
+        avgLtv > 0.75
+          ? ("warn" as const)
+          : ("neutral" as const),
+    },
+    {
+      label: "Performing",
+      value:
+        activeLoans.length > 0
+          ? `${statusCounts.active || 0}/${activeLoans.length}`
+          : "—",
+      sub:
+        activeLoans.length > 0
+          ? `${(((statusCounts.active || 0) / Math.max(activeLoans.length, 1)) * 100).toFixed(0)}% current`
+          : "no active book",
+    },
+  ];
 
   const liveStages = [
     {
@@ -362,27 +304,6 @@ export default async function AdminDashboard({
     },
   ];
 
-  const demoStages = [
-    { id: "lead", label: "Lead", count: 9, amount: 2_900_000 },
-    { id: "application", label: "Application", count: 6, amount: 2_150_000 },
-    {
-      id: "underwriting",
-      label: "Underwriting",
-      count: 4,
-      amount: 1_865_000,
-      attention: true,
-    },
-    {
-      id: "approved",
-      label: "Approved",
-      count: 3,
-      amount: 1_540_000,
-      attention: true,
-    },
-    { id: "funded", label: "Funded", count: 31, amount: 18_700_000 },
-    { id: "closed", label: "Closed", count: 18, amount: 10_400_000 },
-  ];
-
   const livePipelineRows = allLoans
     .filter((l) =>
       ["lead", "application", "underwriting", "approved", "funded"].includes(
@@ -403,59 +324,6 @@ export default async function AdminDashboard({
           : "—",
       updated: formatRelative(l.updated_at || l.created_at, nowTs),
     }));
-
-  const demoPipelineRows = [
-    {
-      id: "deal-1",
-      deal: "Maple Street Bridge",
-      borrower: "Hartwell Homes LLC",
-      property: "Montclair, NJ",
-      stage: "Underwriting",
-      amount: 725_000,
-      ltv: "64%",
-      updated: "2h ago",
-    },
-    {
-      id: "deal-2",
-      deal: "Shoreline Rehab Draw",
-      borrower: "Beacon Ridge Capital",
-      property: "Long Branch, NJ",
-      stage: "Draw review",
-      amount: 1_200_000,
-      ltv: "58%",
-      updated: "5h ago",
-    },
-    {
-      id: "deal-3",
-      deal: "Newark Two-Family",
-      borrower: "Ironbound Property",
-      property: "Newark, NJ",
-      stage: "Approved",
-      amount: 540_000,
-      ltv: "67%",
-      updated: "Yesterday",
-    },
-    {
-      id: "deal-4",
-      deal: "Camden Fix & Flip",
-      borrower: "Riverside Holdings",
-      property: "Camden, NJ",
-      stage: "Application",
-      amount: 390_000,
-      ltv: "61%",
-      updated: "2d ago",
-    },
-    {
-      id: "deal-5",
-      deal: "Pine Hill Multifamily",
-      borrower: "Cedarwood Partners",
-      property: "Pine Hill, NJ",
-      stage: "Lead",
-      amount: 1_450_000,
-      ltv: "—",
-      updated: "3d ago",
-    },
-  ];
 
   const liveTodayRows: TodayRow[] = [
     {
@@ -514,63 +382,6 @@ export default async function AdminDashboard({
     },
   ];
 
-  const demoTodayRows: TodayRow[] = [
-    {
-      id: "wire",
-      label: "Wire approval needed",
-      count: 1,
-      detail: "$412k · SB-2026-0124",
-      href: "/admin/draws",
-      iconKind: "approvals",
-      tone: "high",
-    },
-    {
-      id: "late",
-      label: "Late by 12 days",
-      count: 1,
-      detail: "Lantern Hill LLC · SB-2025-0061",
-      href: "/admin/servicing",
-      iconKind: "servicing",
-      tone: "high",
-    },
-    {
-      id: "draws",
-      label: "Draw inspections this week",
-      count: 3,
-      detail: "$36k pending",
-      href: "/admin/draws",
-      iconKind: "draws",
-      tone: "med",
-    },
-    {
-      id: "review",
-      label: "Underwriting in review",
-      count: 4,
-      detail: "Files queued for decision",
-      href: "/admin/loans?status=underwriting",
-      iconKind: "review",
-      tone: "med",
-    },
-    {
-      id: "maturity",
-      label: "Maturities inside 90 days",
-      count: 6,
-      detail: "$4.8M exposure",
-      href: "/admin/servicing",
-      iconKind: "maturity",
-      tone: "low",
-    },
-    {
-      id: "docs",
-      label: "Documents pending",
-      count: 12,
-      detail: "Across 8 loans",
-      href: "/admin/loans",
-      iconKind: "docs",
-      tone: "low",
-    },
-  ];
-
   const liveMaturityRows = maturingSoon.slice(0, 5).map((l) => {
     const d = Math.ceil(
       (new Date(l.maturity_date! + "T00:00:00Z").getTime() - nowTs) /
@@ -585,14 +396,6 @@ export default async function AdminDashboard({
     };
   });
 
-  const demoMaturityRows = [
-    { id: "loan-a", address: "1849 Cardinal Ridge", maturity: "Jun 8, 2026", balance: 455_000, daysOut: 27 },
-    { id: "loan-b", address: "603 Mockingbird Ln", maturity: "Jun 22, 2026", balance: 358_000, daysOut: 41 },
-    { id: "loan-c", address: "2901 Lantern Hill", maturity: "Jul 11, 2026", balance: 412_000, daysOut: 60 },
-    { id: "loan-d", address: "5012 Hollyfield Ct", maturity: "Jul 28, 2026", balance: 489_000, daysOut: 77 },
-    { id: "loan-e", address: "117 Mariner Cove", maturity: "Aug 9, 2026", balance: 302_000, daysOut: 89 },
-  ];
-
   const liveFundedRows = activeLoans.slice(0, 5).map((l) => ({
     id: l.id,
     address: l.property?.address_street || "Untitled",
@@ -602,14 +405,6 @@ export default async function AdminDashboard({
     fundedDate: l.funded_date,
     performance: l.is_defaulted ? ("default" as const) : ("current" as const),
   }));
-
-  const demoFundedRows = [
-    { id: "f1", address: "1849 Cardinal Ridge", borrower: "Cardinal Build Co", balance: 455_000, rate: 0.1125, fundedDate: "2025-12-18", performance: "current" as const },
-    { id: "f2", address: "603 Mockingbird Ln", borrower: "Mockingbird Ventures", balance: 358_000, rate: 0.115, fundedDate: "2025-11-04", performance: "current" as const },
-    { id: "f3", address: "5012 Hollyfield Ct", borrower: "Hollyfield Capital", balance: 489_000, rate: 0.105, fundedDate: "2025-08-22", performance: "current" as const },
-    { id: "f4", address: "2901 Lantern Hill", borrower: "Lantern Hill LLC", balance: 412_000, rate: 0.12, fundedDate: "2025-07-15", performance: "late-30" as const },
-    { id: "f5", address: "117 Mariner Cove", borrower: "Mariner Cove Homes", balance: 302_000, rate: 0.115, fundedDate: "2025-06-28", performance: "current" as const },
-  ];
 
   return (
     <div className="flex flex-col gap-5">
@@ -648,22 +443,19 @@ export default async function AdminDashboard({
 
       <div className="grid gap-4 lg:grid-cols-[1.55fr_1fr]">
         <PipelineBoard
-          mode={isDemo ? "demo" : "live"}
-          stages={isDemo ? demoStages : liveStages}
-          rows={isDemo ? demoPipelineRows : livePipelineRows}
-          totalRequested={(isDemo ? demoStages : liveStages).reduce(
-            (s, x) => s + x.amount,
-            0
-          )}
+          mode="live"
+          stages={liveStages}
+          rows={livePipelineRows}
+          totalRequested={liveStages.reduce((s, x) => s + x.amount, 0)}
         />
-        <TodayPanel rows={isDemo ? demoTodayRows : liveTodayRows} />
+        <TodayPanel rows={liveTodayRows} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <RecentlyFunded rows={isDemo ? demoFundedRows : liveFundedRows} />
+        <RecentlyFunded rows={liveFundedRows} />
         <MaturityLadder
-          rows={isDemo ? demoMaturityRows : liveMaturityRows}
-          totalExposure={(isDemo ? demoMaturityRows : liveMaturityRows).reduce(
+          rows={liveMaturityRows}
+          totalExposure={liveMaturityRows.reduce(
             (s, r) => s + r.balance,
             0
           )}

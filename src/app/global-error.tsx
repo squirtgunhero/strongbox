@@ -17,7 +17,7 @@ export default function GlobalError({
         style={{
           fontFamily:
             'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-          background: "#F7F5F2",
+          background: "#F0F2F5",
           color: "#0A0A0A",
           margin: 0,
           minHeight: "100vh",
@@ -49,7 +49,7 @@ export default function GlobalError({
           >
             Something went wrong
           </h1>
-          <p style={{ fontSize: 13, color: "#59554f", marginBottom: 20 }}>
+          <p style={{ fontSize: 13, color: "#5C6370", marginBottom: 20 }}>
             We hit an unexpected error rendering this page. Try again, or head
             back to the dashboard. The error has been logged for the team.
           </p>

@@ -10,11 +10,11 @@
 type Role = "borrower" | "investor" | "admin" | "loan_officer";
 
 // Brand tokens. Kept inline below — extracted here for readability.
-const BG = "#F7F5F2";
+const BG = "#F0F2F5";
 const CARD_BG = "#FFFFFF";
-const BORDER = "#E5E1DA";
+const BORDER = "#DDE0E6";
 const FG = "#0A0A0A";
-const MUTED = "#59554f";
+const MUTED = "#5C6370";
 const SERIF = "Georgia, 'Times New Roman', serif";
 const SANS =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
@@ -34,34 +34,43 @@ function shell(args: {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(args.heading)}</title>
   </head>
-  <body style="margin:0;padding:0;background:${BG};font-family:${SANS};color:${FG};">
-    <span style="display:none !important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">${escapeHtml(args.preheader)}</span>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${BG};padding:32px 16px;">
+  <body style="margin:0;padding:0;background:${BG};font-family:${SANS};color:${FG};-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+    <span style="display:none !important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;max-height:0;max-width:0;mso-hide:all;">${escapeHtml(args.preheader)}</span>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${BG};">
       <tr>
-        <td align="center">
-          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
+        <td align="center" style="padding:40px 16px;">
+          <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;">
+            <!-- Logo -->
             <tr>
-              <td style="padding:0 0 20px 0;">
-                <div style="font-family:${SERIF};font-size:22px;font-weight:700;color:${FG};letter-spacing:-0.01em;">StrongBox</div>
+              <td style="padding:0 0 24px 0;">
+                <div style="font-family:${SERIF};font-size:24px;font-weight:700;color:${FG};letter-spacing:-0.02em;">StrongBox</div>
+                <div style="font-family:${SANS};font-size:10px;font-weight:600;letter-spacing:0.12em;color:${MUTED};text-transform:uppercase;margin-top:2px;">Hard Money Lending</div>
               </td>
             </tr>
+            <!-- Card -->
             <tr>
-              <td style="background:${CARD_BG};border:1px solid ${BORDER};border-radius:8px;padding:32px;">
-                <h1 style="margin:0 0 16px 0;font-family:${SANS};font-size:20px;font-weight:600;color:${FG};line-height:1.3;">${escapeHtml(args.heading)}</h1>
-                <div style="font-family:${SANS};font-size:14px;line-height:1.6;color:${FG};">
+              <td style="background:${CARD_BG};border:1px solid ${BORDER};border-radius:12px;padding:40px 36px;">
+                <h1 style="margin:0 0 24px 0;font-family:${SANS};font-size:22px;font-weight:700;color:${FG};line-height:1.3;">${escapeHtml(args.heading)}</h1>
+                <div style="font-family:${SANS};font-size:15px;line-height:1.7;color:#333333;">
                   ${args.bodyHtml}
                 </div>
-                <div style="text-align:center;margin:28px 0 8px 0;">
-                  <a href="${escapeAttr(args.ctaUrl)}" style="display:inline-block;background:${FG};color:#ffffff;text-decoration:none;font-family:${SANS};font-size:14px;font-weight:500;padding:10px 24px;border-radius:6px;">${escapeHtml(args.ctaLabel)}</a>
-                </div>
-                <div style="font-family:${SANS};font-size:12px;line-height:1.5;color:${MUTED};margin-top:20px;word-break:break-all;">
-                  Or paste this link into your browser:<br />
-                  <a href="${escapeAttr(args.ctaUrl)}" style="color:${MUTED};text-decoration:underline;">${escapeHtml(args.ctaUrl)}</a>
-                </div>
+                <!-- Bulletproof button -->
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:32px auto 0 auto;">
+                  <tr>
+                    <td align="center" style="background:#0A0A0A;border-radius:8px;">
+                      <!--[if mso]><i style="letter-spacing:24px;mso-font-width:-100%;mso-text-raise:12pt">&nbsp;</i><![endif]-->
+                      <a href="${escapeAttr(args.ctaUrl)}" target="_blank" style="display:inline-block;background:#0A0A0A;color:#ffffff;text-decoration:none;font-family:${SANS};font-size:14px;font-weight:600;padding:14px 32px;border-radius:8px;mso-padding-alt:0;text-underline-color:#0A0A0A;">
+                        ${escapeHtml(args.ctaLabel)}
+                      </a>
+                      <!--[if mso]><i style="letter-spacing:24px;mso-font-width:-100%">&nbsp;</i><![endif]-->
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
+            <!-- Footer -->
             <tr>
-              <td style="padding:16px 4px 0 4px;font-family:${SANS};font-size:11.5px;line-height:1.5;color:${MUTED};">
+              <td style="padding:24px 4px 0 4px;font-family:${SANS};font-size:11.5px;line-height:1.6;color:${MUTED};text-align:center;">
                 ${args.footerHtml}
               </td>
             </tr>
@@ -111,14 +120,14 @@ export function inviteEmailTemplate(args: {
   const blurb = roleBlurb(args.role, orgName);
 
   const bodyHtml = `
-    <p style="margin:0 0 12px 0;">Hi ${escapeHtml(args.recipientName || "there")},</p>
-    <p style="margin:0 0 12px 0;">${escapeHtml(blurb)}</p>
-    <p style="margin:0;color:${MUTED};font-size:12.5px;">This link expires in 24 hours.</p>
+    <p style="margin:0 0 16px 0;">Hi ${escapeHtml(args.recipientName || "there")},</p>
+    <p style="margin:0 0 16px 0;">${escapeHtml(blurb)}</p>
+    <p style="margin:0;color:${MUTED};font-size:13px;">This link expires in 24 hours.</p>
   `;
 
   const footerHtml = `
-    <div style="margin-bottom:4px;">${escapeHtml(orgName)}</div>
-    <div>Didn't expect this email? You can safely ignore it.</div>
+    <div>${escapeHtml(orgName)}</div>
+    <div style="margin-top:4px;">Didn't expect this email? You can safely ignore it.</div>
   `;
 
   const html = shell({

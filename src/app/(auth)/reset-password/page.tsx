@@ -19,9 +19,17 @@ export default function ResetPasswordPage() {
   const supabase = createClient();
 
   useEffect(() => {
+    // The recovery token arrives in the URL hash; the Supabase client parses
+    // it asynchronously. Check the current session AND subscribe to auth
+    // changes so we flip to ready whether the session is already established
+    // or gets set a moment later (avoids a stuck "Loading reset session…").
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) setReady(true);
     });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) setReady(true);
+    });
+    return () => sub.subscription.unsubscribe();
   }, [supabase.auth]);
 
   async function handleSubmit(e: React.FormEvent) {

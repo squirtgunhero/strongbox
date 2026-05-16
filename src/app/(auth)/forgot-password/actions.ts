@@ -74,8 +74,11 @@ export async function sendPasswordReset(
   }
 
   // Ignore client-supplied redirectBaseUrl — always use the server-configured
-  // app URL to prevent open-redirect attacks.
-  const redirectTo = `${getAppBaseUrl()}/reset-password`;
+  // app URL. This endpoint is anonymous, so we must NOT trust the request
+  // Host header here (it would let an attacker point a victim's reset link
+  // at an attacker domain and capture the token).
+  const appBase = getAppBaseUrl();
+  const redirectTo = `${appBase}/reset-password`;
 
   // Defensive: generateLink throws if the user doesn't exist. We must NOT
   // surface that distinction to the caller (no account enumeration). Always
@@ -87,9 +90,16 @@ export async function sendPasswordReset(
         email: normalized,
         options: { redirectTo },
       });
-    if (linkError || !linkData?.properties?.action_link) {
+    if (linkError || !linkData?.properties?.hashed_token) {
       return { ok: true };
     }
+
+    // Link to our own page carrying the single-use token hash; verified
+    // there via verifyOtp. Avoids Supabase's hosted verify endpoint, which
+    // bounces to the project Site URL (the localhost problem).
+    const resetUrl = `${appBase}/reset-password?token_hash=${encodeURIComponent(
+      linkData.properties.hashed_token
+    )}&type=recovery`;
 
     // Load org name via the server (anon) client — RLS allows staff reads,
     // but org_name isn't sensitive, so fall back gracefully if unavailable.
@@ -107,7 +117,7 @@ export async function sendPasswordReset(
     }
 
     const tpl = passwordResetEmailTemplate({
-      resetUrl: linkData.properties.action_link,
+      resetUrl,
       orgName,
     });
 

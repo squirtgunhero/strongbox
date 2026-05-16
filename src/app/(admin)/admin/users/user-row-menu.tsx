@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,25 +40,22 @@ export function UserRowMenu({
 }: Props) {
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [message, setMessage] = useState<string | null>(null);
 
   const isStaff = userRole === "admin" || userRole === "loan_officer";
 
-  function run(fn: () => Promise<unknown>, successMsg?: string) {
-    setMessage(null);
+  function run(fn: () => Promise<unknown>) {
     startTransition(async () => {
       try {
         await fn();
-        if (successMsg) setMessage(successMsg);
       } catch (e) {
-        setMessage(e instanceof Error ? e.message : "Action failed");
+        toast.error(e instanceof Error ? e.message : "Action failed");
       }
     });
   }
 
-  function confirmAndRun(prompt: string, fn: () => Promise<unknown>, successMsg?: string) {
+  function confirmAndRun(prompt: string, fn: () => Promise<unknown>) {
     if (!window.confirm(prompt)) return;
-    run(fn, successMsg);
+    run(fn);
   }
 
   return (
@@ -87,8 +85,7 @@ export function UserRowMenu({
             onClick={() =>
               confirmAndRun(
                 `Reset MFA for ${userName}? They'll need to re-enroll on next sign-in.`,
-                () => resetUserMfa(userId),
-                "MFA reset."
+                () => resetUserMfa(userId)
               )
             }
           >
@@ -97,7 +94,7 @@ export function UserRowMenu({
           <DropdownMenuItem
             disabled={pending}
             onClick={() =>
-              run(() => sendPasswordResetForUser(userId), "Password reset sent.")
+              run(() => sendPasswordResetForUser(userId))
             }
           >
             Send password reset
@@ -105,7 +102,7 @@ export function UserRowMenu({
           {pendingInvite && (
             <DropdownMenuItem
               disabled={pending}
-              onClick={() => run(() => resendInvite(userId), "Invite resent.")}
+              onClick={() => run(() => resendInvite(userId))}
             >
               Resend invite
             </DropdownMenuItem>
@@ -115,7 +112,7 @@ export function UserRowMenu({
             <DropdownMenuItem
               disabled={isSelf || pending}
               onClick={() =>
-                run(() => setUserDisabled(userId, false), "Account enabled.")
+                run(() => setUserDisabled(userId, false))
               }
             >
               Enable account
@@ -126,8 +123,7 @@ export function UserRowMenu({
               onClick={() =>
                 confirmAndRun(
                   `Disable ${userName}? They will be signed out and unable to log back in.`,
-                  () => setUserDisabled(userId, true),
-                  "Account disabled."
+                  () => setUserDisabled(userId, true)
                 )
               }
             >
@@ -149,7 +145,7 @@ export function UserRowMenu({
                     return;
                   run(async () => {
                     const { mode } = await deleteUser(userId);
-                    setMessage(
+                    toast.success(
                       mode === "hard"
                         ? "User permanently deleted."
                         : "User had account history — access revoked and profile anonymized."
@@ -163,11 +159,6 @@ export function UserRowMenu({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-      {message && (
-        <div className="absolute right-2 mt-1 text-[11px] text-muted-foreground">
-          {message}
-        </div>
-      )}
       {isStaff && (userRole === "admin" || userRole === "loan_officer") && (
         <RoleChangeDialog
           open={roleDialogOpen}

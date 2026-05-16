@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth/require-staff";
@@ -13,11 +14,30 @@ import {
 import type { UserRole } from "@/lib/types";
 
 /**
- * Resolve the deployed app URL for invite/reset redirects.
- * Mirrors the helper in invite-actions.ts — kept colocated so this module
- * doesn't depend on the borrower invite file (different feature surface).
+ * Resolve the app origin for invite/reset redirect links.
+ *
+ * Prefer the actual request host (the domain the admin is using) over env
+ * vars: a stale/misconfigured NEXT_PUBLIC_APP_URL (e.g. pinned to localhost)
+ * would otherwise embed the wrong host in invite links. Falls back to env
+ * configuration only if the request headers are unavailable.
  */
-function getAppBaseUrl(): string {
+async function getAppBaseUrl(): Promise<string> {
+  try {
+    const h = await headers();
+    const host = h.get("x-forwarded-host") || h.get("host");
+    if (host && !host.startsWith("localhost") && !host.startsWith("127.")) {
+      const proto = h.get("x-forwarded-proto") || "https";
+      return `${proto}://${host}`.replace(/\/$/, "");
+    }
+    // Local dev: trust the request host as-is so links work locally too.
+    if (host) {
+      const proto = h.get("x-forwarded-proto") || "http";
+      return `${proto}://${host}`.replace(/\/$/, "");
+    }
+  } catch {
+    // headers() unavailable — fall through to env configuration.
+  }
+
   const configured =
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
@@ -73,7 +93,7 @@ export async function inviteStaff(formData: FormData) {
     throw new Error("Role must be admin or loan_officer");
   }
 
-  const redirectTo = `${getAppBaseUrl()}/reset-password`;
+  const redirectTo = `${await getAppBaseUrl()}/reset-password`;
 
   // Create user without triggering Supabase's built-in invite email.
   // We send our own branded email via Resend instead.
@@ -384,7 +404,7 @@ export async function sendPasswordResetForUser(userId: string) {
     .single();
   if (!profile?.email) throw new Error("User has no email on file");
 
-  const redirectTo = `${getAppBaseUrl()}/reset-password`;
+  const redirectTo = `${await getAppBaseUrl()}/reset-password`;
   const { data: linkData, error: linkError } =
     await admin.auth.admin.generateLink({
       type: "recovery",
@@ -439,7 +459,7 @@ export async function resendInvite(userId: string) {
     throw new Error("User has already signed in — send a password reset instead");
   }
 
-  const redirectTo = `${getAppBaseUrl()}/reset-password`;
+  const redirectTo = `${await getAppBaseUrl()}/reset-password`;
   const { data: linkData, error: linkError } =
     await admin.auth.admin.generateLink({
       type: "recovery",

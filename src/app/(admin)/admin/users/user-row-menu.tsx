@@ -16,6 +16,7 @@ import {
   sendPasswordResetForUser,
   resendInvite,
   setUserDisabled,
+  deleteUser,
 } from "./actions";
 import type { UserRole } from "@/lib/types";
 
@@ -132,6 +133,33 @@ export function UserRowMenu({
             >
               Disable account
             </DropdownMenuItem>
+          )}
+          {isStaff && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={isSelf || pending}
+                onClick={() => {
+                  if (
+                    !window.confirm(
+                      `Delete ${userName}? This permanently revokes their access and cannot be undone. If they have account history, their profile is anonymized instead of fully removed.`
+                    )
+                  )
+                    return;
+                  run(async () => {
+                    const { mode } = await deleteUser(userId);
+                    setMessage(
+                      mode === "hard"
+                        ? "User permanently deleted."
+                        : "User had account history — access revoked and profile anonymized."
+                    );
+                  });
+                }}
+              >
+                Delete user
+              </DropdownMenuItem>
+            </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>

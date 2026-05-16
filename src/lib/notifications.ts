@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import twilio from "twilio";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 interface QueueArgs {
   channel?: "email" | "sms" | "in_app";
@@ -20,12 +21,15 @@ interface QueueArgs {
   relatedLoanId?: string | null;
 }
 
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+function getResend(): Resend | null {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  return new Resend(key);
+}
 
-const FROM_EMAIL =
-  process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+function getFromEmail(): string {
+  return process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+}
 
 const twilioClient =
   process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
@@ -53,17 +57,25 @@ async function sendSms(
 /**
  * Queue a notification and attempt immediate delivery.
  *
- * Email is delivered via Resend if RESEND_API_KEY is set; otherwise the row
- * stays `pending` for later retry. Failures are recorded but never thrown —
- * we don't want a flaky provider to break the parent action.
+ * Uses the service-role client for DB operations so notification tracking
+ * isn't affected by RLS. Email is delivered via Resend if RESEND_API_KEY is
+ * set; otherwise the row stays `pending` for later retry. Failures are
+ * recorded but never thrown — we don't want a flaky provider to break the
+ * parent action.
  */
 export async function queueNotification(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   args: QueueArgs
 ): Promise<void> {
+  const admin = createAdminClient();
+  if (!admin) {
+    console.error("queueNotification: admin client not available");
+    return;
+  }
+
   const channel = args.channel || "email";
 
-  const { data: row, error: insertError } = await supabase
+  const { data: row, error: insertError } = await admin
     .from("notifications")
     .insert({
       channel,
@@ -92,9 +104,13 @@ export async function queueNotification(
   try {
     if (channel === "email") {
       if (!args.recipientEmail) return;
-      if (!resend) return; // no provider configured — leave pending
+      const resend = getResend();
+      if (!resend) {
+        console.error("queueNotification: RESEND_API_KEY not configured");
+        return;
+      }
       const { data: sendData, error } = await resend.emails.send({
-        from: FROM_EMAIL,
+        from: getFromEmail(),
         to: args.recipientEmail,
         subject: args.subject,
         text: args.body,
@@ -102,7 +118,7 @@ export async function queueNotification(
       } as Parameters<typeof resend.emails.send>[0]);
       sendError = error ? error.message || String(error) : null;
       if (!sendError && sendData?.id) {
-        await supabase
+        await admin
           .from("notifications")
           .update({ provider_message_id: sendData.id })
           .eq("id", row.id);
@@ -114,12 +130,12 @@ export async function queueNotification(
     }
 
     if (sendError) {
-      await supabase
+      await admin
         .from("notifications")
         .update({ status: "failed", failure_reason: sendError })
         .eq("id", row.id);
     } else {
-      await supabase
+      await admin
         .from("notifications")
         .update({
           status: "sent",
@@ -128,7 +144,8 @@ export async function queueNotification(
         .eq("id", row.id);
     }
   } catch (e) {
-    await supabase
+    console.error("queueNotification delivery error", e);
+    await admin
       .from("notifications")
       .update({
         status: "failed",
@@ -143,10 +160,13 @@ export async function queueNotification(
  * button to push anything left over (e.g. queued while API key was missing).
  */
 export async function sendPendingNotifications(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   limit = 50
 ): Promise<{ sent: number; failed: number }> {
-  const { data: pending } = await supabase
+  const admin = createAdminClient();
+  if (!admin) return { sent: 0, failed: 0 };
+
+  const { data: pending } = await admin
     .from("notifications")
     .select("id, channel, recipient_email, recipient_phone, subject, body")
     .eq("status", "pending")
@@ -158,7 +178,7 @@ export async function sendPendingNotifications(
   let failed = 0;
 
   for (const n of pending || []) {
-    // Skip if provider not configured for this channel
+    const resend = getResend();
     if (n.channel === "email" && !resend) continue;
     if (n.channel === "sms" && !twilioClient) continue;
 
@@ -166,7 +186,7 @@ export async function sendPendingNotifications(
       (n.channel === "email" && !n.recipient_email) ||
       (n.channel === "sms" && !n.recipient_phone);
     if (missingRecipient) {
-      await supabase
+      await admin
         .from("notifications")
         .update({
           status: "skipped",
@@ -180,7 +200,7 @@ export async function sendPendingNotifications(
     try {
       if (n.channel === "email") {
         const { error } = await resend!.emails.send({
-          from: FROM_EMAIL,
+          from: getFromEmail(),
           to: n.recipient_email!,
           subject: n.subject,
           text: n.body,
@@ -192,20 +212,20 @@ export async function sendPendingNotifications(
       }
 
       if (errorMsg) {
-        await supabase
+        await admin
           .from("notifications")
           .update({ status: "failed", failure_reason: errorMsg })
           .eq("id", n.id);
         failed++;
       } else {
-        await supabase
+        await admin
           .from("notifications")
           .update({ status: "sent", sent_at: new Date().toISOString() })
           .eq("id", n.id);
         sent++;
       }
     } catch (e) {
-      await supabase
+      await admin
         .from("notifications")
         .update({
           status: "failed",

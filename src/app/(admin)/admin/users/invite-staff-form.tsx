@@ -36,7 +36,7 @@ export function InviteStaffForm() {
     try {
       formData.set("role", role);
       const result = await inviteStaff(formData);
-      setSuccess(`Invite sent to ${result.email}`);
+      setOpen(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to invite");
     } finally {

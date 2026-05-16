@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth/require-staff";
 import { queueNotification } from "@/lib/notifications";
+import { Resend } from "resend";
 import {
   inviteEmailTemplate,
   passwordResetEmailTemplate,
@@ -73,16 +74,38 @@ export async function inviteStaff(formData: FormData) {
   }
 
   const redirectTo = `${getAppBaseUrl()}/reset-password`;
+
+  // Create user without triggering Supabase's built-in invite email.
+  // We send our own branded email via Resend instead.
+  let invitedUser: { id: string } | undefined;
+  const { data: existing } = await admin.auth.admin.listUsers();
+  const existingUser = existing?.users?.find(
+    (u) => u.email?.toLowerCase() === email
+  );
+
+  if (existingUser) {
+    invitedUser = existingUser;
+  } else {
+    const { data: created, error: createError } =
+      await admin.auth.admin.createUser({
+        email,
+        email_confirm: false,
+        user_metadata: { role },
+      });
+    if (createError) throw new Error(createError.message);
+    invitedUser = created?.user;
+  }
+  if (!invitedUser) throw new Error("Failed to create user");
+
   const { data: linkData, error: linkError } =
     await admin.auth.admin.generateLink({
-      type: "invite",
+      type: "recovery",
       email,
-      options: { redirectTo, data: { role } },
+      options: { redirectTo },
     });
   if (linkError) throw new Error(linkError.message);
-  const invitedUser = linkData?.user;
   const actionLink = linkData?.properties?.action_link;
-  if (!invitedUser || !actionLink) throw new Error("Invite did not return a user");
+  if (!actionLink) throw new Error("Invite did not return a link");
 
   await admin.from("profiles").upsert({
     id: invitedUser.id,
@@ -106,13 +129,49 @@ export async function inviteStaff(formData: FormData) {
     inviteUrl: actionLink,
     orgName,
   });
-  await queueNotification(supabase, {
-    recipientEmail: email,
-    recipientUserId: invitedUser.id,
+
+  // Send email directly via Resend, log result to notifications table
+  let emailStatus = "pending";
+  let emailError: string | null = null;
+  let providerId: string | null = null;
+
+  const resendKey = process.env.RESEND_API_KEY;
+  if (resendKey) {
+    try {
+      const resend = new Resend(resendKey);
+      const { data: sendData, error: sendErr } = await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+        to: email,
+        subject: tpl.subject,
+        text: tpl.text,
+        html: tpl.html,
+      });
+      if (sendErr) {
+        emailStatus = "failed";
+        emailError = sendErr.message || String(sendErr);
+      } else {
+        emailStatus = "sent";
+        providerId = sendData?.id || null;
+      }
+    } catch (e) {
+      emailStatus = "failed";
+      emailError = e instanceof Error ? e.message : String(e);
+    }
+  } else {
+    emailError = "RESEND_API_KEY not configured";
+  }
+
+  await admin.from("notifications").insert({
+    channel: "email",
+    status: emailStatus,
+    recipient_email: email,
+    recipient_user_id: invitedUser.id,
     subject: tpl.subject,
     body: tpl.text,
-    html: tpl.html,
-    eventType: "user.invited",
+    event_type: "user.invited",
+    sent_at: emailStatus === "sent" ? new Date().toISOString() : null,
+    failure_reason: emailError,
+    provider_message_id: providerId,
   });
 
   revalidatePath("/admin/users");
@@ -203,6 +262,80 @@ export async function setUserDisabled(userId: string, disabled: boolean) {
 
   revalidatePath("/admin/users");
   return { ok: true };
+}
+
+export async function deleteUser(userId: string) {
+  const caller = await requireAdmin();
+  if (caller.userId === userId) {
+    throw new Error("You cannot delete your own account");
+  }
+  const admin = requireAdminClient();
+
+  const { data: target } = await admin
+    .from("profiles")
+    .select("id, role, email, full_name")
+    .eq("id", userId)
+    .single();
+  if (!target) throw new Error("User not found");
+
+  const role = target.role as UserRole;
+  if (!STAFF_ROLES.includes(role)) {
+    // Borrower/investor identity is FK-linked from the borrowers/investors
+    // tables; deleting here would orphan those records.
+    throw new Error(
+      "Only staff accounts can be deleted here. Borrower and investor accounts must be removed from their respective records."
+    );
+  }
+
+  // Last-admin guard: never leave the platform without an admin.
+  if (role === "admin") {
+    const { count } = await admin
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "admin");
+    if ((count ?? 0) <= 1) {
+      throw new Error("Cannot delete the last remaining admin");
+    }
+  }
+
+  // Try a full hard delete. Deleting the auth user cascades to profiles
+  // (profiles.id references auth.users on delete cascade). If the user has
+  // audit history or linked records, that cascaded profile delete is blocked
+  // by RESTRICT foreign keys (audit_log.performed_by, loans.loan_officer_id,
+  // payments.recorded_by, …) and the whole delete fails atomically — so we
+  // fall back to a permanent deactivation that preserves audit integrity:
+  // ban the login and anonymize the profile.
+  let mode: "hard" | "deactivated" = "hard";
+  const { error: delErr } = await admin.auth.admin.deleteUser(userId);
+  if (delErr) {
+    mode = "deactivated";
+    const { error: banErr } = await admin.auth.admin.updateUserById(userId, {
+      ban_duration: "876000h",
+    });
+    if (banErr) throw new Error(banErr.message);
+    const tombstone = `deleted+${userId.slice(0, 8)}@deleted.invalid`;
+    const { error: scrubErr } = await admin
+      .from("profiles")
+      .update({ full_name: "Deleted user", email: tombstone })
+      .eq("id", userId);
+    if (scrubErr) throw new Error(scrubErr.message);
+  }
+
+  await admin.from("audit_log").insert({
+    table_name: "profiles",
+    record_id: userId,
+    action: "delete",
+    old_values: {
+      email: target.email,
+      role,
+      full_name: target.full_name,
+    },
+    new_values: { mode },
+    performed_by: caller.userId,
+  });
+
+  revalidatePath("/admin/users");
+  return { mode };
 }
 
 export async function resetUserMfa(userId: string) {
@@ -309,9 +442,9 @@ export async function resendInvite(userId: string) {
   const redirectTo = `${getAppBaseUrl()}/reset-password`;
   const { data: linkData, error: linkError } =
     await admin.auth.admin.generateLink({
-      type: "invite",
+      type: "recovery",
       email: profile.email,
-      options: { redirectTo, data: { role: profile.role } },
+      options: { redirectTo },
     });
   if (linkError) throw new Error(linkError.message);
   const actionLink = linkData?.properties?.action_link;
@@ -324,13 +457,49 @@ export async function resendInvite(userId: string) {
     inviteUrl: actionLink,
     orgName,
   });
-  await queueNotification(supabase, {
-    recipientEmail: profile.email,
-    recipientUserId: userId,
+
+  // Send email directly via Resend
+  let emailStatus = "pending";
+  let emailError: string | null = null;
+  let providerId: string | null = null;
+
+  const resendKey = process.env.RESEND_API_KEY;
+  if (resendKey) {
+    try {
+      const resend = new Resend(resendKey);
+      const { data: sendData, error: sendErr } = await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+        to: profile.email,
+        subject: tpl.subject,
+        text: tpl.text,
+        html: tpl.html,
+      });
+      if (sendErr) {
+        emailStatus = "failed";
+        emailError = sendErr.message || String(sendErr);
+      } else {
+        emailStatus = "sent";
+        providerId = sendData?.id || null;
+      }
+    } catch (e) {
+      emailStatus = "failed";
+      emailError = e instanceof Error ? e.message : String(e);
+    }
+  } else {
+    emailError = "RESEND_API_KEY not configured";
+  }
+
+  await admin.from("notifications").insert({
+    channel: "email",
+    status: emailStatus,
+    recipient_email: profile.email,
+    recipient_user_id: userId,
     subject: tpl.subject,
     body: tpl.text,
-    html: tpl.html,
-    eventType: "user.invited",
+    event_type: "user.invited",
+    sent_at: emailStatus === "sent" ? new Date().toISOString() : null,
+    failure_reason: emailError,
+    provider_message_id: providerId,
   });
 
   await admin.from("audit_log").insert({

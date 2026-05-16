@@ -28,9 +28,9 @@ export default function ResetPasswordPage() {
     const tokenHash = params.get("token_hash");
     const type = params.get("type");
 
-    if (tokenHash && type === "recovery") {
+    if (tokenHash && (type === "recovery" || type === "invite")) {
       supabase.auth
-        .verifyOtp({ type: "recovery", token_hash: tokenHash })
+        .verifyOtp({ type, token_hash: tokenHash })
         .then(({ error }) => {
           if (error) {
             setError(

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { borrowerDisplayName } from "@/lib/format";
 import { requireStaff } from "@/lib/auth/require-staff";
 import { queueNotification } from "@/lib/notifications";
@@ -17,7 +18,27 @@ async function loadOrgName(supabase: Awaited<ReturnType<typeof createClient>>) {
   return data?.org_name || "StrongBox";
 }
 
-function getAppBaseUrl() {
+/**
+ * Resolve the app origin from the actual request host (the domain staff is
+ * using), falling back to env config only if headers are unavailable. See
+ * the matching helper in admin/users/actions.ts for the rationale.
+ */
+async function getAppBaseUrl(): Promise<string> {
+  try {
+    const h = await headers();
+    const host = h.get("x-forwarded-host") || h.get("host");
+    if (host && !host.startsWith("localhost") && !host.startsWith("127.")) {
+      const proto = h.get("x-forwarded-proto") || "https";
+      return `${proto}://${host}`.replace(/\/$/, "");
+    }
+    if (host) {
+      const proto = h.get("x-forwarded-proto") || "http";
+      return `${proto}://${host}`.replace(/\/$/, "");
+    }
+  } catch {
+    // headers() unavailable — fall through to env configuration.
+  }
+
   const configured =
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
@@ -34,6 +55,18 @@ function getAppBaseUrl() {
     ? configured
     : `https://${configured}`;
   return withProtocol.replace(/\/$/, "");
+}
+
+/**
+ * Build an invite link that points at our own /reset-password page carrying
+ * the single-use token hash, verified there via verifyOtp. Keeps the email
+ * off Supabase's hosted verify endpoint so it can't bounce to a stale Site
+ * URL (the localhost problem).
+ */
+function selfHostedInviteUrl(appBase: string, hashedToken: string): string {
+  return `${appBase}/reset-password?token_hash=${encodeURIComponent(
+    hashedToken
+  )}&type=invite`;
 }
 
 export async function inviteBorrower(borrowerId: string) {
@@ -62,20 +95,22 @@ export async function inviteBorrower(borrowerId: string) {
 
   // Generate the invite link WITHOUT sending Supabase's default email; we'll
   // send a branded version via Resend below.
-  const redirectTo = `${getAppBaseUrl()}/reset-password`;
+  const appBase = await getAppBaseUrl();
   const { data: linkData, error: linkError } =
     await admin.auth.admin.generateLink({
       type: "invite",
       email: borrower.email,
       options: {
-        redirectTo,
+        redirectTo: `${appBase}/reset-password`,
         data: { role: "borrower" },
       },
     });
   if (linkError) throw new Error(linkError.message);
   const invitedUser = linkData?.user;
-  const actionLink = linkData?.properties?.action_link;
-  if (!invitedUser || !actionLink) throw new Error("Invite did not return a user");
+  const tokenHash = linkData?.properties?.hashed_token;
+  if (!invitedUser || !tokenHash)
+    throw new Error("Invite did not return a user");
+  const actionLink = selfHostedInviteUrl(appBase, tokenHash);
 
   const fullName = borrowerDisplayName(borrower);
 
@@ -144,20 +179,22 @@ export async function inviteInvestor(investorId: string) {
   if (!investor.email) throw new Error("Investor has no email on file");
   if (investor.user_id) throw new Error("Investor is already linked");
 
-  const redirectTo = `${getAppBaseUrl()}/reset-password`;
+  const appBase = await getAppBaseUrl();
   const { data: linkData, error: linkError } =
     await admin.auth.admin.generateLink({
       type: "invite",
       email: investor.email,
       options: {
-        redirectTo,
+        redirectTo: `${appBase}/reset-password`,
         data: { role: "investor" },
       },
     });
   if (linkError) throw new Error(linkError.message);
   const invitedUser = linkData?.user;
-  const actionLink = linkData?.properties?.action_link;
-  if (!invitedUser || !actionLink) throw new Error("Invite did not return a user");
+  const tokenHash = linkData?.properties?.hashed_token;
+  if (!invitedUser || !tokenHash)
+    throw new Error("Invite did not return a user");
+  const actionLink = selfHostedInviteUrl(appBase, tokenHash);
 
   const fullName =
     investor.investor_type === "entity"

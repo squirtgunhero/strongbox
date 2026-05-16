@@ -19,10 +19,32 @@ export default function ResetPasswordPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    // The recovery token arrives in the URL hash; the Supabase client parses
-    // it asynchronously. Check the current session AND subscribe to auth
-    // changes so we flip to ready whether the session is already established
-    // or gets set a moment later (avoids a stuck "Loading reset session…").
+    // Primary flow: the invite/reset email links here with ?token_hash=…&
+    // type=recovery. Verify it directly so the email never has to route
+    // through Supabase's hosted verify endpoint (which would bounce to the
+    // project Site URL). Falls back to an already-present session / hash
+    // token for any legacy links still in flight.
+    const params = new URLSearchParams(window.location.search);
+    const tokenHash = params.get("token_hash");
+    const type = params.get("type");
+
+    if (tokenHash && type === "recovery") {
+      supabase.auth
+        .verifyOtp({ type: "recovery", token_hash: tokenHash })
+        .then(({ error }) => {
+          if (error) {
+            setError(
+              "This link is invalid or has expired. Request a new one."
+            );
+          } else {
+            setReady(true);
+            // Drop the token from the URL so it isn't left in history.
+            window.history.replaceState(null, "", "/reset-password");
+          }
+        });
+      return;
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) setReady(true);
     });
@@ -71,9 +93,16 @@ export default function ResetPasswordPage() {
       </header>
 
       {!ready ? (
-        <div className="rounded-md border bg-muted/40 px-4 py-3 text-[12.5px] text-muted-foreground">
-          Loading reset session…
-        </div>
+        error ? (
+          <div className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-[12.5px] text-primary">
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        ) : (
+          <div className="rounded-md border bg-muted/40 px-4 py-3 text-[12.5px] text-muted-foreground">
+            Loading reset session…
+          </div>
+        )
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
           <div className="flex flex-col gap-1.5">

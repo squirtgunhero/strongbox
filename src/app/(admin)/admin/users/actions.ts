@@ -55,6 +55,18 @@ async function getAppBaseUrl(): Promise<string> {
   return withProtocol.replace(/\/$/, "");
 }
 
+/**
+ * Build a recovery/invite link that points at our own /reset-password page
+ * carrying the single-use token hash. The page verifies it directly via
+ * verifyOtp, so the email never routes through Supabase's verify endpoint
+ * and therefore can't bounce to a stale Auth "Site URL" (e.g. localhost).
+ */
+function selfHostedRecoveryUrl(appBase: string, hashedToken: string): string {
+  return `${appBase}/reset-password?token_hash=${encodeURIComponent(
+    hashedToken
+  )}&type=recovery`;
+}
+
 async function loadOrgName(
   supabase: Awaited<ReturnType<typeof createClient>>
 ): Promise<string> {
@@ -93,7 +105,7 @@ export async function inviteStaff(formData: FormData) {
     throw new Error("Role must be admin or loan_officer");
   }
 
-  const redirectTo = `${await getAppBaseUrl()}/reset-password`;
+  const appBase = await getAppBaseUrl();
 
   // Create user without triggering Supabase's built-in invite email.
   // We send our own branded email via Resend instead.
@@ -121,11 +133,12 @@ export async function inviteStaff(formData: FormData) {
     await admin.auth.admin.generateLink({
       type: "recovery",
       email,
-      options: { redirectTo },
+      options: { redirectTo: `${appBase}/reset-password` },
     });
   if (linkError) throw new Error(linkError.message);
-  const actionLink = linkData?.properties?.action_link;
-  if (!actionLink) throw new Error("Invite did not return a link");
+  const tokenHash = linkData?.properties?.hashed_token;
+  if (!tokenHash) throw new Error("Invite did not return a token");
+  const actionLink = selfHostedRecoveryUrl(appBase, tokenHash);
 
   await admin.from("profiles").upsert({
     id: invitedUser.id,
@@ -404,16 +417,17 @@ export async function sendPasswordResetForUser(userId: string) {
     .single();
   if (!profile?.email) throw new Error("User has no email on file");
 
-  const redirectTo = `${await getAppBaseUrl()}/reset-password`;
+  const appBase = await getAppBaseUrl();
   const { data: linkData, error: linkError } =
     await admin.auth.admin.generateLink({
       type: "recovery",
       email: profile.email,
-      options: { redirectTo },
+      options: { redirectTo: `${appBase}/reset-password` },
     });
   if (linkError) throw new Error(linkError.message);
-  const actionLink = linkData?.properties?.action_link;
-  if (!actionLink) throw new Error("Reset did not return a link");
+  const tokenHash = linkData?.properties?.hashed_token;
+  if (!tokenHash) throw new Error("Reset did not return a token");
+  const actionLink = selfHostedRecoveryUrl(appBase, tokenHash);
 
   const orgName = await loadOrgName(supabase);
   const tpl = passwordResetEmailTemplate({
@@ -459,16 +473,17 @@ export async function resendInvite(userId: string) {
     throw new Error("User has already signed in — send a password reset instead");
   }
 
-  const redirectTo = `${await getAppBaseUrl()}/reset-password`;
+  const appBase = await getAppBaseUrl();
   const { data: linkData, error: linkError } =
     await admin.auth.admin.generateLink({
       type: "recovery",
       email: profile.email,
-      options: { redirectTo },
+      options: { redirectTo: `${appBase}/reset-password` },
     });
   if (linkError) throw new Error(linkError.message);
-  const actionLink = linkData?.properties?.action_link;
-  if (!actionLink) throw new Error("Invite did not return a link");
+  const tokenHash = linkData?.properties?.hashed_token;
+  if (!tokenHash) throw new Error("Invite did not return a token");
+  const actionLink = selfHostedRecoveryUrl(appBase, tokenHash);
 
   const orgName = await loadOrgName(supabase);
   const tpl = inviteEmailTemplate({

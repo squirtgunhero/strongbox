@@ -5,10 +5,15 @@ import { revalidatePath } from "next/cache";
 import {
   remainingHoldback,
   validateDrawAmount,
-  requiresDualApproval,
 } from "@/lib/calculations/holdback";
+import {
+  dualApprovalDecisionAmount,
+  approvalsRequired,
+  assertDisburserEligible,
+} from "@/lib/calculations/draw-approval";
 import { getDualApprovalThreshold } from "@/lib/org-settings";
 import { queueNotification } from "@/lib/notifications";
+import { requireStaff } from "@/lib/auth/require-staff";
 
 export async function requestDraw(loanId: string, formData: FormData) {
   const supabase = await createClient();
@@ -91,11 +96,8 @@ export async function requestDraw(loanId: string, formData: FormData) {
 }
 
 export async function recordInspection(drawId: string, notes: string) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const { data: draw, error } = await supabase
     .from("draws")
@@ -103,7 +105,7 @@ export async function recordInspection(drawId: string, notes: string) {
       status: "inspected",
       inspection_completed_at: new Date().toISOString(),
       inspector_notes: notes,
-      inspector_id: user.id,
+      inspector_id: caller.userId,
     })
     .eq("id", drawId)
     .eq("status", "requested") // only from requested
@@ -118,7 +120,7 @@ export async function recordInspection(drawId: string, notes: string) {
     action: "status_change",
     old_values: { status: "requested" },
     new_values: { status: "inspected" },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath(`/admin/loans/${draw.loan_id}`);
@@ -126,11 +128,8 @@ export async function recordInspection(drawId: string, notes: string) {
 }
 
 export async function approveDraw(drawId: string, approvedAmount: number) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const { data: draw } = await supabase
     .from("draws")
@@ -148,7 +147,8 @@ export async function approveDraw(drawId: string, approvedAmount: number) {
     throw new Error("Draw must be inspected before approval");
   }
 
-  // Validate against current holdback
+  // Validate against current holdback (friendly early error; the SQL
+  // function is the authoritative gate on promotion).
   const { data: property } = await supabase
     .from("loans")
     .select("property:properties(rehab_budget)")
@@ -167,75 +167,105 @@ export async function approveDraw(drawId: string, approvedAmount: number) {
   );
   validateDrawAmount(approvedAmount, remaining);
 
-  // Record the approval (append-only, will fail uniqueness if same approver twice)
-  const { error: approvalError } = await supabase.from("draw_approvals").insert({
-    draw_id: drawId,
-    approver_id: user.id,
-  });
-  if (approvalError) {
-    if (approvalError.code === "23505") {
+  // Record the approval and (maybe) promote in ONE atomic transaction.
+  // The SQL function locks the draw row, enforces requester-cannot-approve
+  // and one-approval-per-person, and decides the dual-approval requirement
+  // on max(requested, approved) so it can't be under-stated to dodge it.
+  const { data: result, error: rpcError } = await supabase
+    .rpc("approve_draw_atomic", {
+      p_draw_id: drawId,
+      p_approved_amount: approvedAmount,
+    })
+    .single<{
+      promoted: boolean;
+      approvals: number;
+      approvals_needed: number;
+    }>();
+
+  if (rpcError) {
+    if (rpcError.code === "23505") {
       throw new Error("You have already approved this draw");
     }
-    throw new Error(approvalError.message);
+    throw new Error(rpcError.message);
   }
 
-  // Count approvals
-  const { count } = await supabase
-    .from("draw_approvals")
-    .select("*", { count: "exact", head: true })
-    .eq("draw_id", drawId);
-
-  // Load the configured threshold rather than relying on a hardcoded constant
-  // so changes from the settings page take effect immediately.
-  const threshold = await getDualApprovalThreshold(supabase);
-  const approvalsNeeded = requiresDualApproval(approvedAmount, threshold) ? 2 : 1;
-
-  if ((count || 0) >= approvalsNeeded) {
-    await supabase
-      .from("draws")
-      .update({
-        status: "approved",
-        approved_amount: approvedAmount,
-      })
-      .eq("id", drawId);
-
-    await supabase.from("audit_log").insert({
-      table_name: "draws",
-      record_id: drawId,
-      action: "status_change",
-      new_values: { status: "approved", approved_amount: approvedAmount },
-      performed_by: user.id,
-    });
-  } else {
-    await supabase.from("audit_log").insert({
-      table_name: "draws",
-      record_id: drawId,
-      action: "update",
-      new_values: { approval_count: count, approvals_needed: approvalsNeeded },
-      performed_by: user.id,
-    });
-  }
+  await supabase.from("audit_log").insert({
+    table_name: "draws",
+    record_id: drawId,
+    action: result?.promoted ? "status_change" : "update",
+    new_values: result?.promoted
+      ? { status: "approved", approved_amount: approvedAmount }
+      : {
+          approval_count: result?.approvals,
+          approvals_needed: result?.approvals_needed,
+        },
+    performed_by: caller.userId,
+  });
 
   revalidatePath(`/admin/loans/${draw.loan_id}`);
   revalidatePath("/admin/draws");
 }
 
 export async function disburseDraw(drawId: string) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+
+  // Load the draw and everyone who has touched it, to enforce separation
+  // of duties on the actual money-out step.
+  const { data: pending } = await supabase
+    .from("draws")
+    .select("status, requested_amount, approved_amount, requested_by, loan_id")
+    .eq("id", drawId)
+    .single<{
+      status: string;
+      requested_amount: number;
+      approved_amount: number | null;
+      requested_by: string | null;
+      loan_id: string;
+    }>();
+
+  if (!pending || pending.status !== "approved") {
+    throw new Error("Draw must be approved before disbursement");
+  }
+
+  const { data: approvalRows } = await supabase
+    .from("draw_approvals")
+    .select("approver_id")
+    .eq("draw_id", drawId);
+  const approverIds = (approvalRows || []).map((a) => a.approver_id as string);
+
+  const threshold = await getDualApprovalThreshold(supabase);
+  const decisionAmount = dualApprovalDecisionAmount(
+    Number(pending.requested_amount),
+    Number(pending.approved_amount ?? 0)
+  );
+
+  // Re-assert dual approval at disburse time: the threshold may have been
+  // lowered in settings after this draw was approved.
+  if (approverIds.length < approvalsRequired(decisionAmount, threshold)) {
+    throw new Error(
+      "This draw no longer has enough approvals for the current dual-approval threshold. It must be re-approved."
+    );
+  }
+
+  // Above threshold, the disburser must be a distinct third party.
+  assertDisburserEligible({
+    disburserId: caller.userId,
+    requesterId: pending.requested_by ?? "",
+    approverIds,
+    decisionAmount,
+    threshold,
+  });
 
   const { data: draw, error } = await supabase
     .from("draws")
     .update({
       status: "funded",
       funded_at: new Date().toISOString(),
-      funded_by: user.id,
+      funded_by: caller.userId,
     })
     .eq("id", drawId)
-    .eq("status", "approved") // only from approved
+    .eq("status", "approved") // only from approved (guards against a race)
     .select("loan_id, approved_amount")
     .single();
 
@@ -249,7 +279,7 @@ export async function disburseDraw(drawId: string) {
     record_id: drawId,
     action: "disbursement",
     new_values: { amount: draw.approved_amount },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   // Notify borrower
@@ -286,11 +316,8 @@ export async function disburseDraw(drawId: string) {
 }
 
 export async function rejectDraw(drawId: string, reason: string) {
+  const caller = await requireStaff();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
 
   const { data: draw, error } = await supabase
     .from("draws")
@@ -310,7 +337,7 @@ export async function rejectDraw(drawId: string, reason: string) {
     record_id: drawId,
     action: "status_change",
     new_values: { status: "rejected", reason },
-    performed_by: user.id,
+    performed_by: caller.userId,
   });
 
   revalidatePath(`/admin/loans/${draw.loan_id}`);

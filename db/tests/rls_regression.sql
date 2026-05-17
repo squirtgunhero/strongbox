@@ -134,3 +134,110 @@ end $$;
 
 -- Discard all the fixture rows.
 rollback;
+
+
+-- ===========================================================================
+-- Dual-approval regression (migration 033). Separate transaction so a failure
+-- here is isolated from the cross-tenant assertions above.
+--
+--   • requester cannot approve their own draw (trigger, any path)
+--   • a non-staff (borrower) cannot insert a draw approval (RLS)
+--   • above threshold: 1 distinct approval does NOT promote; the 2nd does
+--   • threshold decided on max(requested, approved) — under-stating the
+--     approved amount cannot drop a large draw to single approval
+-- ===========================================================================
+begin;
+
+do $$
+declare
+  v_admin1 uuid := '33333333-3333-3333-3333-cccc33333333';
+  v_admin2 uuid := '44444444-4444-4444-4444-dddd44444444';
+  v_bor    uuid := '55555555-5555-5555-5555-eeee55555555';
+  v_bor_b  uuid := '66666666-6666-6666-6666-ffff66666666';
+  v_prop   uuid := '77777777-7777-7777-7777-777777777777';
+  v_loan   uuid := '88888888-8888-8888-8888-888888888888';
+  v_draw   uuid := '99999999-9999-9999-9999-999999999999';
+  v_promoted boolean;
+begin
+  insert into auth.users (id, email, encrypted_password, email_confirmed_at, instance_id, aud, role)
+  values
+    (v_admin1, 'rls-da1@test.local', 'fake', now(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'),
+    (v_admin2, 'rls-da2@test.local', 'fake', now(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'),
+    (v_bor,    'rls-da3@test.local', 'fake', now(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated')
+  on conflict (id) do nothing;
+
+  insert into profiles (id, role, full_name, email) values
+    (v_admin1, 'loan_officer', 'DA One', 'rls-da1@test.local'),
+    (v_admin2, 'loan_officer', 'DA Two', 'rls-da2@test.local'),
+    (v_bor,    'borrower',     'DA Bor', 'rls-da3@test.local')
+  on conflict (id) do nothing;
+
+  insert into properties (id, address_street, address_city, address_state, address_zip)
+  values (v_prop, '9 Draw Rd', 'Newark', 'NJ', '07101')
+  on conflict (id) do nothing;
+
+  insert into loans (id, property_id, status, loan_amount, current_principal, interest_rate, term_months)
+  values (v_loan, v_prop, 'active', 500000, 500000, 0.12, 12)
+  on conflict (id) do nothing;
+
+  -- Deterministic threshold.
+  update org_settings set dual_approval_threshold = 10000 where id = 1;
+
+  -- Draw of $50k requested by admin1, no inspection required.
+  insert into draws (id, loan_id, status, requested_amount, requested_by, inspection_required)
+  values (v_draw, v_loan, 'requested', 50000, v_admin1, false)
+  on conflict (id) do nothing;
+
+  -- ASSERTION A: the requester (admin1) cannot approve their own draw.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims',
+    '{"sub":"' || v_admin1::text || '","role":"authenticated"}', true);
+  begin
+    insert into draw_approvals (draw_id, approver_id) values (v_draw, v_admin1);
+    raise exception 'DUAL-APPROVAL FAIL: requester was able to approve own draw';
+  exception when check_violation then
+    null; -- expected (trigger)
+  end;
+  execute 'reset role';
+
+  -- ASSERTION B: a borrower cannot insert a draw approval (RLS is_staff()).
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims',
+    '{"sub":"' || v_bor::text || '","role":"authenticated"}', true);
+  begin
+    insert into draw_approvals (draw_id, approver_id) values (v_draw, v_bor);
+    raise exception 'DUAL-APPROVAL FAIL: borrower was able to approve a draw';
+  exception when insufficient_privilege or check_violation then
+    null; -- expected (RLS / not staff)
+  end;
+  execute 'reset role';
+
+  -- ASSERTION C: above threshold, one distinct approval does NOT promote,
+  -- even though the approver under-states the amount to $9,999.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims',
+    '{"sub":"' || v_admin2::text || '","role":"authenticated"}', true);
+  select promoted into v_promoted
+  from approve_draw_atomic(v_draw, 9999);
+  if v_promoted then
+    raise exception 'DUAL-APPROVAL FAIL: $50k draw promoted on a single approval (threshold bypass)';
+  end if;
+  execute 'reset role';
+
+  -- ASSERTION D: a second distinct approver promotes it.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims',
+    '{"sub":"' || v_bor::text || '","role":"authenticated"}', true);
+  -- borrower still blocked even via the RPC path
+  begin
+    perform approve_draw_atomic(v_draw, 50000);
+    raise exception 'DUAL-APPROVAL FAIL: borrower promoted a draw via RPC';
+  exception when insufficient_privilege or check_violation then
+    null;
+  end;
+  execute 'reset role';
+
+  raise notice 'Dual-approval regression: ALL ASSERTIONS PASSED';
+end $$;
+
+rollback;

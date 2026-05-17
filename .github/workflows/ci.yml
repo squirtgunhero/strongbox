@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   quality:
-    name: Lint · Typecheck · Unit tests
+    name: quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
         run: npm test
 
   rls:
-    name: RLS regression (Supabase)
+    name: rls
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

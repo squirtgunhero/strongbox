@@ -57,10 +57,14 @@ export function AdminSidebar({ profile, isOpen, onClose }: AdminSidebarProps) {
             className={cn(sIdx > 0 ? "mt-5 pt-3" : "")}
           >
             <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70">
-              {section.label === "Insights" ? "Intelligence" : section.label}
+              {section.label}
             </div>
             <ul className="flex flex-col gap-0.5">
-              {section.items.map((item) => {
+              {section.items
+                .filter(
+                  (item) => item.href !== "/admin/users" && item.href !== "/admin/settings"
+                )
+                .map((item) => {
                 const isActive =
                   item.href === "/admin"
                     ? pathname === "/admin"

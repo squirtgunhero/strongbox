@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Menu, Search, LogOut, Plus } from "lucide-react";
+import { Menu, Search, LogOut, Plus, UserCog, Settings } from "lucide-react";
 import { signOut } from "@/app/(auth)/login/actions";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getAdminRouteMeta } from "@/components/admin-nav";
@@ -24,6 +25,7 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ profile, onMenuToggle, detail }: AdminHeaderProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const routeMeta = getAdminRouteMeta(pathname);
 
   const initials =
@@ -102,6 +104,16 @@ export function AdminHeader({ profile, onMenuToggle, detail }: AdminHeaderProps)
           <DropdownMenuItem className="text-[12px] text-muted-foreground" disabled>
             {profile.role.replace(/_/g, " ")}
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => router.push("/admin/users")}>
+            <UserCog className="mr-2 h-4 w-4" />
+            Users
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/admin/settings")}>
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => signOut()}>
             <LogOut className="mr-2 h-4 w-4" />
             Sign out

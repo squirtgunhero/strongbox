@@ -216,7 +216,7 @@ export default async function ReportsPage() {
           <CardTitle className="text-sm">Aging Report</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-5 gap-4">
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 sm:gap-4">
             {(["current", "30", "60", "90", "90+"] as AgingBucket[]).map((b) => {
               const loans = aging[b];
               const total = loans.reduce(

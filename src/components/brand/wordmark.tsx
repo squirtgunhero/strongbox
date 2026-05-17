@@ -1,34 +1,37 @@
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 interface WordmarkProps {
   className?: string;
-  /** Height in px. Width auto-scales to the wordmark aspect ratio. */
+  /** Cap/visual height in px. Maps to font-size; width is intrinsic. */
   height?: number;
-  /** `aria-label` for the rendered image. */
+  /** Accessible label. */
   title?: string;
 }
 
-// Source PNG is tightly cropped to the wordmark bounding box.
-const SRC_W = 1016;
-const SRC_H = 256;
-const ASPECT = SRC_W / SRC_H; // ≈ 3.97
-
+/**
+ * Typographic wordmark. Renders live text in the brand serif
+ * (var(--font-brand)) and inherits `currentColor`, so it recolors cleanly
+ * on any background (no image, no filter hacks). Replaces the former PNG.
+ */
 export function Wordmark({
   className,
   height = 28,
   title = "StrongBox",
 }: WordmarkProps) {
-  const width = Math.round(height * ASPECT);
   return (
-    <Image
-      src="/brand/wordmark.png"
-      alt={title}
-      width={SRC_W}
-      height={SRC_H}
-      priority
-      className={cn("block h-auto w-auto select-none", className)}
-      style={{ height, width }}
-    />
+    <span
+      aria-label={title}
+      className={cn("inline-block select-none", className)}
+      style={{
+        fontFamily: "var(--font-brand)",
+        fontWeight: 700,
+        fontSize: `${height}px`,
+        lineHeight: 1,
+        letterSpacing: "-0.01em",
+        whiteSpace: "nowrap",
+      }}
+    >
+      StrongBox
+    </span>
   );
 }

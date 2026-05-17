@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,20 +19,24 @@ interface Settings {
 }
 
 export function SettingsForm({ settings }: { settings: Settings | null }) {
-  const [status, action, pending] = useActionState(
-    async (_prev: string | null, formData: FormData) => {
+  const [status, setStatus] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    startTransition(async () => {
       try {
         await saveSettings(formData);
-        return "Saved";
-      } catch (e) {
-        return e instanceof Error ? e.message : "Failed";
+        setStatus("Saved");
+      } catch (err) {
+        setStatus(err instanceof Error ? err.message : "Failed");
       }
-    },
-    null
-  );
+    });
+  }
 
   return (
-    <form action={action} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="org_name">Organization Name</Label>
         <Input

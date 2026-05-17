@@ -58,7 +58,7 @@ export function AdminHeader({ profile, onMenuToggle, detail }: AdminHeaderProps)
           </div>
         </div>
 
-        <div className="hidden flex-1 min-[1100px]:block" />
+        <div className="flex-1" />
 
         <div className="hidden min-w-0 flex-1 max-w-[420px] min-[1100px]:block">
         <div className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-muted-foreground transition focus-within:bg-card focus-within:ring-2 focus-within:ring-primary/20">

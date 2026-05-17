@@ -21,8 +21,9 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
 export default async function NotificationsPage() {
   const supabase = await createClient();
 
-  // Counts for the last 30 days for delivery metrics
+  // Counts for the last 30 days for delivery metrics.
   const thirtyDaysAgo = new Date(
+    // eslint-disable-next-line react-hooks/purity -- server component; window is relative to request-time
     Date.now() - 30 * 24 * 60 * 60 * 1000
   ).toISOString();
 

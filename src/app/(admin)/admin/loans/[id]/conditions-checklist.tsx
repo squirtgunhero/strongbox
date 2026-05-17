@@ -192,6 +192,7 @@ function ConditionRow({
         {condition.description}
         {condition.due_date && (() => {
           const days = Math.ceil(
+            // eslint-disable-next-line react-hooks/purity -- read-only "days until due" badge; recomputing on re-render is intended
             (new Date(condition.due_date + "T00:00:00Z").getTime() - Date.now()) /
               (1000 * 60 * 60 * 24)
           );

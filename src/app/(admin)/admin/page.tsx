@@ -39,6 +39,8 @@ export default async function AdminDashboard({
 }: {
   searchParams: Promise<{ scope?: string }>;
 }) {
+  // Server component: one render per request, so request-time is correct.
+  // eslint-disable-next-line react-hooks/purity -- relative-date display needs current time
   const nowTs = Date.now();
   const today = new Date(nowTs);
   const sp = await searchParams;

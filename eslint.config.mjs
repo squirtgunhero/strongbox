@@ -12,6 +12,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Non-source trees: agent worktrees, deploy output, and the static
+    // prototype bundle in public/ are not application code and must not
+    // gate CI.
+    ".claude/**",
+    ".vercel/**",
+    "public/**",
   ]),
 ]);
 

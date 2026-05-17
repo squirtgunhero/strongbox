@@ -1,0 +1,78 @@
+name: CI
+
+# Controls evidence for SOC 2: lint, typecheck, financial-math tests, and the
+# RLS regression all run automatically on every PR and on pushes to main.
+# Enable branch protection on `main` requiring both jobs to make this a gate.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint · Typecheck · Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Unit tests (financial math, RLS logic)
+        run: npm test
+
+  rls:
+    name: RLS regression (Supabase)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Initialize Supabase project config
+        run: test -f supabase/config.toml || supabase init --workdir .
+
+      - name: Start local Supabase stack
+        run: supabase start
+
+      - name: Apply migrations in order
+        env:
+          # Default local Supabase Postgres connection.
+          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: |
+          for f in db/migrations/[0-9]*.sql; do
+            echo ">> $f"
+            psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: RLS regression assertions
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: npm run test:rls
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop --no-backup || true

@@ -46,7 +46,8 @@ export function InsuranceCard({
     ? new Date(insurance.insurance_expiration_date + "T00:00:00Z")
     : null;
   const daysUntilExpiration = expirationDate
-    ? Math.ceil((expirationDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    ? // eslint-disable-next-line react-hooks/purity -- read-only "days to expiry" badge; recomputing on re-render is intended
+      Math.ceil((expirationDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     : null;
   const expiringSoon =
     daysUntilExpiration !== null && daysUntilExpiration < 30;

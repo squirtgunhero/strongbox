@@ -42,7 +42,7 @@ export function RecentlyFunded({ rows }: { rows: FundedRow[] }) {
         <div className="px-5 py-10 text-center">
           <div className="text-[13px] font-medium">No active loans</div>
           <p className="mt-1 text-[11.5px] text-muted-foreground">
-            Once a loan is funded it'll appear here.
+            Once a loan is funded it&apos;ll appear here.
           </p>
         </div>
       ) : (

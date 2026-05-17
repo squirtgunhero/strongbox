@@ -123,7 +123,7 @@ export function PipelineBoard({
                       {mode === "empty" ? "No deals in your pipeline" : "No in-flight deals"}
                     </div>
                     <p className="mt-1 text-[11.5px] text-muted-foreground">
-                      New loans land here as soon as they're created.
+                      New loans land here as soon as they&apos;re created.
                     </p>
                   </div>
                 </td>

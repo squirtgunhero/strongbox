@@ -124,6 +124,7 @@ export default async function LoansPage({
 
   // Maturity filter (computed in memory)
   if (sp.maturity && sp.maturity !== "all") {
+    // eslint-disable-next-line react-hooks/purity -- server component; maturity filter needs request-time
     const now = Date.now();
     loans = loans.filter((l) => {
       if (!l.maturity_date) return false;

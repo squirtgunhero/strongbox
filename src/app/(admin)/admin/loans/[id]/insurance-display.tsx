@@ -21,6 +21,7 @@ export function InsuranceDisplay({ insurance }: { insurance: InsuranceData }) {
     : null;
   const daysUntilExpiration = expirationDate
     ? Math.ceil(
+        // eslint-disable-next-line react-hooks/purity -- server component; days-to-expiry is relative to request-time
         (expirationDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
       )
     : null;

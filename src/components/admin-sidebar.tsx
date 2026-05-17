@@ -27,7 +27,7 @@ export function AdminSidebar({ profile, isOpen, onClose }: AdminSidebarProps) {
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-40 flex h-screen w-[250px] shrink-0 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar)] transition-transform duration-200 ease-out lg:sticky lg:top-0 lg:z-auto",
+        "fixed inset-y-0 left-0 z-40 flex h-dvh w-[250px] shrink-0 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar)] transition-transform duration-200 ease-out lg:sticky lg:top-0 lg:z-auto",
         isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}
     >
@@ -97,7 +97,7 @@ export function AdminSidebar({ profile, isOpen, onClose }: AdminSidebarProps) {
         ))}
       </nav>
 
-      <div className="border-t border-[var(--sidebar-border)] p-3">
+      <div className="border-t border-[var(--sidebar-border)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex items-center gap-2.5 rounded-xl px-3 py-2.5">
           <div className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-[12px] font-semibold text-white">
             {initials || "U"}

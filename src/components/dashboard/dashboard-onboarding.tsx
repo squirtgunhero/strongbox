@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   Building2,
@@ -7,6 +9,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -72,10 +75,25 @@ const STEPS: OnboardingStep[] = [
 ];
 
 export function DashboardOnboarding({
-  greeting,
+  firstName,
 }: {
-  greeting: string;
+  firstName: string;
 }) {
+  const [localHour, setLocalHour] = useState<number | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLocalHour(new Date().getHours());
+  }, []);
+  const dayGreeting =
+    localHour === null
+      ? "Welcome"
+      : localHour < 12
+      ? "Good morning"
+      : localHour < 17
+        ? "Good afternoon"
+        : "Good evening";
+  const greeting = `${dayGreeting}, ${firstName}.`;
+
   const total = STEPS.length;
   const done = STEPS.filter((s) => s.done).length;
 
@@ -87,7 +105,7 @@ export function DashboardOnboarding({
             {greeting}
           </h1>
           <p className="mt-1.5 max-w-[640px] text-[13.5px] text-muted-foreground">
-            Welcome to StrongBox. Five steps and you'll have a complete operating
+            Welcome to StrongBox. Five steps and you&apos;ll have a complete operating
             book — capital, collateral, borrowers, and servicing — running from
             one place.
           </p>

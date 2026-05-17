@@ -91,14 +91,11 @@ export default async function AdminDashboard({
 
   const allLoans = loans || [];
 
-  const hour = today.getHours();
-  const greeting =
-    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const firstName = profile?.full_name?.trim().split(/\s+/)[0] || "there";
 
   // ZERO data → onboarding only.
   if (allLoans.length === 0) {
-    return <DashboardOnboarding greeting={`${greeting}, ${firstName}.`} />;
+    return <DashboardOnboarding firstName={firstName} />;
   }
 
   const activeLoans = allLoans.filter((l) =>

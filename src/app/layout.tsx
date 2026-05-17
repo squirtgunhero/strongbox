@@ -17,6 +17,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "StrongBox",
   description: "Hard Money Lending Platform",
+  icons: {
+    icon: [{ url: "/icon.png?v=20260516", type: "image/png" }],
+    shortcut: [{ url: "/icon.png?v=20260516", type: "image/png" }],
+    apple: [{ url: "/icon.png?v=20260516", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({

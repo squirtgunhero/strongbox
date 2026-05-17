@@ -34,15 +34,18 @@ export function AdminSidebar({ profile, isOpen, onClose }: AdminSidebarProps) {
       {/* Logo block */}
       <div className="flex items-center gap-3 px-5 pb-6 pt-5">
         <Link href="/admin" className="flex min-w-0 flex-col gap-1">
-          <Wordmark height={34} className="text-foreground" />
-          <div className="pl-[2px] text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+          <Wordmark
+            height={34}
+            className="[filter:brightness(0)_invert(1)]"
+          />
+          <div className="pl-[2px] text-[10px] font-medium uppercase tracking-[0.12em] text-white/45">
             Hard Money Lending
           </div>
         </Link>
         <Button
           variant="ghost"
           size="icon-sm"
-          className="ml-auto text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
+          className="ml-auto text-white/60 hover:bg-white/10 hover:text-white lg:hidden"
           onClick={onClose}
           aria-label="Close navigation"
         >
@@ -56,7 +59,7 @@ export function AdminSidebar({ profile, isOpen, onClose }: AdminSidebarProps) {
             key={section.label}
             className={cn(sIdx > 0 ? "mt-5 pt-3" : "")}
           >
-            <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70">
+            <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-white/40">
               {section.label}
             </div>
             <ul className="flex flex-col gap-0.5">
@@ -78,13 +81,13 @@ export function AdminSidebar({ profile, isOpen, onClose }: AdminSidebarProps) {
                         "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-medium transition-colors",
                         isActive
                           ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-[var(--sidebar-foreground)] hover:bg-muted/60 hover:text-foreground"
+                          : "text-[var(--sidebar-foreground)] hover:bg-white/10 hover:text-white"
                       )}
                     >
                       <item.icon
                         className={cn(
                           "h-[18px] w-[18px] shrink-0 transition-colors",
-                          isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
+                          isActive ? "text-primary-foreground" : "text-white/55 group-hover:text-white"
                         )}
                       />
                       <span className="truncate">{item.title}</span>
@@ -99,14 +102,14 @@ export function AdminSidebar({ profile, isOpen, onClose }: AdminSidebarProps) {
 
       <div className="border-t border-[var(--sidebar-border)] p-3">
         <div className="flex items-center gap-2.5 rounded-xl px-3 py-2.5">
-          <div className="grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-[12px] font-semibold text-primary">
+          <div className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-[12px] font-semibold text-white">
             {initials || "U"}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px] font-medium text-foreground">
+            <div className="truncate text-[13px] font-medium text-white">
               {profile.full_name}
             </div>
-            <div className="truncate text-[11px] capitalize text-muted-foreground">
+            <div className="truncate text-[11px] capitalize text-white/50">
               {profile.role.replace(/_/g, " ")}
             </div>
           </div>

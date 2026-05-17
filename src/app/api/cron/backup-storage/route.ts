@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { syncStorageToR2 } from "@/lib/backup/storage-dump";
+import { PLATFORM_ORG_ID } from "@/lib/platform";
 
 /**
  * Nightly incremental sync of Supabase Storage → R2.
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
     const duration_ms = Date.now() - start;
 
     await supabase.from("audit_log").insert({
+      org_id: PLATFORM_ORG_ID,
       table_name: "system",
       record_id: "00000000-0000-0000-0000-000000000000",
       action: "backup",

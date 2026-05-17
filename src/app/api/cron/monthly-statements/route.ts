@@ -1,5 +1,8 @@
 import { NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import {
+  createUnscopedAdminClient,
+  createOrgAdminClient,
+} from "@/lib/supabase/admin";
 import { accruedInterestWithDefault } from "@/lib/calculations/interest";
 import { sendPendingNotifications } from "@/lib/notifications";
 import type { DayCountConvention } from "@/lib/types";
@@ -20,16 +23,29 @@ export async function POST(request: NextRequest) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  // Use service role for cron — bypasses RLS. Without it, no auth.uid().
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!serviceKey || !url) {
+  // This cron runs across ALL orgs. The loan SELECT is an inherently
+  // cross-org platform read, so it uses the unscoped client. Every WRITE
+  // (notifications, audit) is routed through a per-org scoped client so
+  // org_id is stamped and the enforce_org_id trigger is satisfied.
+  const unscoped = createUnscopedAdminClient();
+  if (!unscoped) {
     return new Response("Service role not configured", { status: 500 });
   }
 
-  const supabase = createServerClient(url, serviceKey, {
-    cookies: { getAll: () => [], setAll: () => {} },
-  });
+  const orgClients = new Map<
+    string,
+    NonNullable<ReturnType<typeof createOrgAdminClient>>
+  >();
+  const clientFor = (orgId: string) => {
+    let c = orgClients.get(orgId);
+    if (!c) {
+      const created = createOrgAdminClient(orgId);
+      if (!created) throw new Error("Service role not configured");
+      c = created;
+      orgClients.set(orgId, c);
+    }
+    return c;
+  };
 
   // Previous calendar month
   const now = new Date();
@@ -39,18 +55,26 @@ export async function POST(request: NextRequest) {
   const periodStart = toIso(start);
   const periodEnd = toIso(end);
 
-  const { data: loans } = await supabase
+  const { data: loans } = await unscoped
     .from("loans")
     .select(`
-      id, current_principal, interest_rate, default_rate, default_date, day_count,
+      id, org_id, current_principal, interest_rate, default_rate, default_date, day_count,
       loan_borrowers(is_primary, borrower:borrowers(email, user_id))
     `)
     .in("status", ["funded", "active", "defaulted"]);
 
   let generated = 0;
   let skipped = 0;
+  // Per-org tallies so each org gets its own audit summary row.
+  const perOrg = new Map<string, { generated: number; skipped: number }>();
+  const tally = (orgId: string, key: "generated" | "skipped") => {
+    const t = perOrg.get(orgId) || { generated: 0, skipped: 0 };
+    t[key]++;
+    perOrg.set(orgId, t);
+  };
 
   for (const loan of loans || []) {
+    const orgId = (loan as unknown as { org_id: string }).org_id;
     const primary = (
       loan as unknown as {
         loan_borrowers: {
@@ -62,6 +86,7 @@ export async function POST(request: NextRequest) {
 
     if (!primary?.borrower?.email) {
       skipped++;
+      tally(orgId, "skipped");
       continue;
     }
 
@@ -80,7 +105,7 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    await supabase.from("notifications").insert({
+    await clientFor(orgId).from("notifications").insert({
       channel: "email",
       status: "pending",
       recipient_email: primary.borrower.email,
@@ -91,23 +116,30 @@ export async function POST(request: NextRequest) {
       related_loan_id: loan.id,
     });
     generated++;
+    tally(orgId, "generated");
   }
 
-  await supabase.from("audit_log").insert({
-    table_name: "notifications",
-    record_id: "00000000-0000-0000-0000-000000000000",
-    action: "insert",
-    new_values: {
-      batch: "monthly_statements_cron",
-      period_start: periodStart,
-      period_end: periodEnd,
-      generated,
-      skipped,
-    },
-  });
+  // One audit summary row per org that had activity (audit_log is org-scoped
+  // and append-only; record_id = the org's id; no user → performed_by null).
+  for (const [orgId, counts] of perOrg) {
+    await clientFor(orgId).from("audit_log").insert({
+      table_name: "notifications",
+      record_id: orgId,
+      action: "insert",
+      new_values: {
+        batch: "monthly_statements_cron",
+        period_start: periodStart,
+        period_end: periodEnd,
+        generated: counts.generated,
+        skipped: counts.skipped,
+        actor: { system: "monthly_statements_cron" },
+      },
+      performed_by: null,
+    });
+  }
 
   // Drain the pending notifications now (best-effort)
-  const delivery = await sendPendingNotifications(supabase, generated);
+  const delivery = await sendPendingNotifications(generated);
 
   return Response.json({
     generated,

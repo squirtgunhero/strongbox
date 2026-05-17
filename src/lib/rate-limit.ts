@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createUnscopedAdminClient } from "@/lib/supabase/admin";
 
 /**
  * Check + record a rate-limit attempt. Returns true when the request is
@@ -18,7 +18,9 @@ export async function rateLimit(opts: {
 }): Promise<{ allowed: boolean }> {
   const isProd = process.env.NODE_ENV === "production";
 
-  const admin = createAdminClient();
+  // Rate limiting is keyed by pre-auth identifier/IP and backed by an
+  // org-agnostic service_role RPC — intentionally unscoped.
+  const admin = createUnscopedAdminClient();
   if (!admin) {
     if (isProd) {
       console.error("[rate-limit] service role not configured — failing closed in production");

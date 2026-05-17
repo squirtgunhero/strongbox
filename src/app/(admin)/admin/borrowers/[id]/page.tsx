@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createOrgAdminClient } from "@/lib/supabase/admin";
+import { getCaller } from "@/lib/auth/require-staff";
 import { decryptFieldSafe } from "@/lib/crypto";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +54,8 @@ export default async function BorrowerDetailPage({
   // Encrypted PII columns are gated to service_role; fetch separately and
   // surface only the last-four to the client. The reveal action audit-logs
   // access of the full value.
-  const admin = createAdminClient();
+  const caller = await getCaller();
+  const admin = createOrgAdminClient(caller.orgId);
   let ssnLastFour: string | null = null;
   let einLastFour: string | null = null;
   if (admin) {

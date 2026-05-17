@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { dumpDatabase } from "@/lib/backup/db-dump";
 import { encryptBuffer } from "@/lib/backup/encrypt";
 import { uploadToR2 } from "@/lib/backup/r2";
+import { PLATFORM_ORG_ID } from "@/lib/platform";
 
 /**
  * Nightly database backup → encrypted JSONL.gz → Cloudflare R2.
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
     const duration_ms = Date.now() - start;
 
     await supabase.from("audit_log").insert({
+      org_id: PLATFORM_ORG_ID,
       table_name: "system",
       record_id: "00000000-0000-0000-0000-000000000000",
       action: "backup",

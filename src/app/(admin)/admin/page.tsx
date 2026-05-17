@@ -112,7 +112,6 @@ export default async function AdminDashboard({
   const { data: orgSettings } = await supabase
     .from("org_settings")
     .select("max_borrower_concentration, max_state_concentration")
-    .eq("id", 1)
     .single();
   const concentration = analyzeConcentration(
     activeLoans.map((l) => {

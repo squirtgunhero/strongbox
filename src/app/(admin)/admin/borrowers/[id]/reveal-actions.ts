@@ -1,6 +1,6 @@
 "use server";
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createOrgAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/auth/require-staff";
 import { decryptFieldSafe } from "@/lib/crypto";
@@ -16,7 +16,10 @@ async function revealField(
 ): Promise<string | null> {
   const caller = await requireStaff();
 
-  const admin = createAdminClient();
+  // Org-scoped: the wrapper adds `.eq('org_id', caller.orgId)`, so a staff
+  // member cannot reveal PII for a borrower in another organization even
+  // with a guessed id.
+  const admin = createOrgAdminClient(caller.orgId);
   if (!admin) throw new Error("Service role not configured");
 
   const { data, error } = await admin

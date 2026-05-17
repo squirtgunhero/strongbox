@@ -25,7 +25,7 @@ export async function submitPaymentIntent(loanId: string, formData: FormData) {
   // Look up the borrower row for this user
   const { data: borrower } = await supabase
     .from("borrowers")
-    .select("id")
+    .select("id, org_id")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -87,7 +87,7 @@ export async function submitPaymentIntent(loanId: string, formData: FormData) {
   }
 
   for (const [email, userId] of recipients) {
-    await queueNotification(supabase, {
+    await queueNotification(borrower.org_id, {
       channel: "email",
       recipientEmail: email,
       recipientUserId: userId,

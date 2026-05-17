@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
-import { getSupabaseUrl } from "@/lib/supabase/env";
+import {
+  createUnscopedAdminClient,
+  createOrgAdminClient,
+} from "@/lib/supabase/admin";
 
 /**
  * Stripe webhook handler. Configure at Dashboard → Developers → Webhooks
@@ -80,20 +82,32 @@ export async function POST(request: NextRequest) {
     return new Response("Invalid JSON", { status: 400 });
   }
 
-  const supabaseUrl = getSupabaseUrl();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceKey) {
+  const unscoped = createUnscopedAdminClient();
+  if (!unscoped) {
     return new Response("Service role not configured", { status: 500 });
   }
-  const supabase = createClient(supabaseUrl, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
 
   const intent = event.data.object;
   const strongboxIntentId = intent.metadata?.strongbox_intent_id;
   if (!strongboxIntentId) {
     // Event not originated by StrongBox — acknowledge silently.
     return new Response("OK", { status: 200 });
+  }
+
+  // Webhooks have no session: resolve the owning org from the matched
+  // record first, then do all writes through the org-scoped client.
+  const { data: existing } = await unscoped
+    .from("payment_intents")
+    .select("id, org_id")
+    .eq("id", strongboxIntentId)
+    .maybeSingle();
+  if (!existing) {
+    // Unknown/foreign intent id — acknowledge so Stripe stops retrying.
+    return new Response("OK", { status: 200 });
+  }
+  const orgClient = createOrgAdminClient(existing.org_id as string);
+  if (!orgClient) {
+    return new Response("Service role not configured", { status: 500 });
   }
 
   const now = new Date().toISOString();
@@ -116,7 +130,7 @@ export async function POST(request: NextRequest) {
     return new Response("OK (unhandled)", { status: 200 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await orgClient
     .from("payment_intents")
     .update(update)
     .eq("id", strongboxIntentId)
@@ -128,7 +142,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (data) {
-    await supabase.from("audit_log").insert({
+    await orgClient.from("audit_log").insert({
       table_name: "payment_intents",
       record_id: data.id,
       action: "status_change",

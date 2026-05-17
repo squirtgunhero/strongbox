@@ -65,7 +65,7 @@ export async function generateMonthlyStatements(
         periodEnd
       );
 
-      await queueNotification(supabase, {
+      await queueNotification(caller.orgId, {
         channel: "email",
         recipientEmail: primary.borrower.email,
         recipientUserId: primary.borrower.user_id,

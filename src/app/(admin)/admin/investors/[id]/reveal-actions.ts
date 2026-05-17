@@ -1,6 +1,6 @@
 "use server";
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createOrgAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/auth/require-staff";
 import { decryptFieldSafe } from "@/lib/crypto";
@@ -14,7 +14,8 @@ export async function revealInvestorTaxId(
 ): Promise<string | null> {
   const caller = await requireStaff();
 
-  const admin = createAdminClient();
+  // Org-scoped: cannot reveal a tax id for an investor in another org.
+  const admin = createOrgAdminClient(caller.orgId);
   if (!admin) throw new Error("Service role not configured");
 
   const { data, error } = await admin

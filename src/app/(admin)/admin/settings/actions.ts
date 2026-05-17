@@ -33,8 +33,9 @@ export async function saveSettings(formData: FormData) {
       max_state_concentration:
         parseFloat(formData.get("max_state_concentration") as string) / 100,
       require_mfa_for_staff: formData.get("require_mfa_for_staff") === "on",
-    })
-    .eq("id", 1);
+    });
+  // No id filter: org_settings is one row per org and the restrictive RLS
+  // policy constrains this UPDATE to the caller's own org row.
 
   if (error) throw new Error(error.message);
 

@@ -11,6 +11,7 @@ export const config = {
     "/portal/:path*",
     "/investor/:path*",
     "/documents/:path*",
+    "/platform/:path*",
     "/login",
   ],
 };

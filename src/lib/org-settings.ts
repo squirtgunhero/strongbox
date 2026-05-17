@@ -6,7 +6,27 @@ interface ClientLike {
 }
 
 /**
- * Load the configured dual-approval threshold from `org_settings.id = 1`.
+ * org_settings is one row per organization (since migration 035). For an
+ * RLS-bound client the restrictive org_isolation policy already filters
+ * it to exactly the caller's row, so we just `.single()` it — no id filter.
+ * For a service-role client, pass an org-scoped admin client
+ * (createOrgAdminClient) so the same single-row guarantee holds.
+ *
+ * Returns null if no settings row exists for the organization yet.
+ */
+export async function getOrgSettings(
+  client: ClientLike
+): Promise<Record<string, unknown> | null> {
+  const { data, error } = await client
+    .from("org_settings")
+    .select("*")
+    .single();
+  if (error || !data) return null;
+  return data as Record<string, unknown>;
+}
+
+/**
+ * Load the configured dual-approval threshold for the caller's organization.
  * Returns the migration default if the row is missing or the column is null.
  *
  * Callers in server actions should ALWAYS use this rather than the constant
@@ -15,13 +35,8 @@ interface ClientLike {
 export async function getDualApprovalThreshold(
   client: ClientLike
 ): Promise<number> {
-  const { data, error } = await client
-    .from("org_settings")
-    .select("dual_approval_threshold")
-    .eq("id", 1)
-    .single();
-  if (error || !data || data.dual_approval_threshold == null) {
-    return DEFAULT_DUAL_APPROVAL_THRESHOLD;
-  }
-  return Number(data.dual_approval_threshold);
+  const settings = await getOrgSettings(client);
+  const value = settings?.dual_approval_threshold;
+  if (value == null) return DEFAULT_DUAL_APPROVAL_THRESHOLD;
+  return Number(value);
 }

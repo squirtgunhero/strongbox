@@ -256,6 +256,7 @@ export async function disburseDraw(drawId: string) {
   const { data: borrowerData } = await supabase
     .from("loans")
     .select(`
+      org_id,
       loan_borrowers(
         is_primary,
         borrower:borrowers(email, user_id)
@@ -263,14 +264,15 @@ export async function disburseDraw(drawId: string) {
     `)
     .eq("id", draw.loan_id)
     .single<{
+      org_id: string;
       loan_borrowers: {
         is_primary: boolean;
         borrower: { email: string | null; user_id: string | null };
       }[];
     }>();
   const primary = borrowerData?.loan_borrowers?.find((lb) => lb.is_primary);
-  if (primary?.borrower?.email) {
-    await queueNotification(supabase, {
+  if (borrowerData && primary?.borrower?.email) {
+    await queueNotification(borrowerData.org_id, {
       channel: "email",
       recipientEmail: primary.borrower.email,
       recipientUserId: primary.borrower.user_id,

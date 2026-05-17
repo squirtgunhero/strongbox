@@ -1,7 +1,6 @@
 "use server";
 
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { createUnscopedAdminClient } from "@/lib/supabase/admin";
 import { rateLimit } from "@/lib/rate-limit";
 import { queueNotification } from "@/lib/notifications";
 import { passwordResetEmailTemplate } from "@/lib/emails/templates";
@@ -66,7 +65,7 @@ export async function sendPasswordReset(
   });
   if (!long.allowed) return { ok: true };
 
-  const admin = createAdminClient();
+  const admin = createUnscopedAdminClient();
   if (!admin) {
     // Without service role we can't dispatch through Supabase admin; surface
     // an explicit failure to the form rather than appearing successful.
@@ -101,35 +100,35 @@ export async function sendPasswordReset(
       linkData.properties.hashed_token
     )}&type=recovery`;
 
-    // Load org name via the server (anon) client — RLS allows staff reads,
-    // but org_name isn't sensitive, so fall back gracefully if unavailable.
-    let orgName = "StrongBox";
-    try {
-      const supabase = await createClient();
-      const { data: org } = await supabase
-        .from("org_settings")
-        .select("org_name")
-        .eq("id", 1)
-        .single();
-      if (org?.org_name) orgName = org.org_name;
-    } catch {
-      // Non-fatal — keep default org name.
-    }
+    // This flow is anonymous: there is no session and therefore no org
+    // context (the email could belong to any org, and we deliberately
+    // don't enumerate). org_settings is per-org now, so a branded name
+    // can't be resolved here — use the product default.
+    const orgName = "StrongBox";
 
     const tpl = passwordResetEmailTemplate({
       resetUrl,
       orgName,
     });
 
-    // Use the admin client so notification insert isn't blocked by RLS
-    // (no authenticated user in this anonymous flow).
-    await queueNotification(admin, {
-      recipientEmail: normalized,
-      subject: tpl.subject,
-      body: tpl.text,
-      html: tpl.html,
-      eventType: "auth.password_reset_requested",
-    });
+    // notifications is org-scoped. This flow is anonymous, so resolve the
+    // owning org from the (now known to exist) user's profile via the
+    // unscoped admin client, then queue into that org. If the user has no
+    // profile/org we skip delivery rather than leak existence.
+    const { data: prof } = await admin
+      .from("profiles")
+      .select("org_id")
+      .eq("email", normalized)
+      .maybeSingle();
+    if (prof?.org_id) {
+      await queueNotification(prof.org_id, {
+        recipientEmail: normalized,
+        subject: tpl.subject,
+        body: tpl.text,
+        html: tpl.html,
+        eventType: "auth.password_reset_requested",
+      });
+    }
   } catch (e) {
     console.error("[forgot-password] generateLink/send failed", e);
     // Swallow — never leak whether the account exists.

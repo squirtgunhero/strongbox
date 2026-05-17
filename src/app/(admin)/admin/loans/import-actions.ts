@@ -90,7 +90,6 @@ export async function importLoansCsv(
     const { data: settings } = await supabase
       .from("org_settings")
       .select("licensed_states")
-      .eq("id", 1)
       .single();
     const licensedStates: string[] = settings?.licensed_states || [];
 

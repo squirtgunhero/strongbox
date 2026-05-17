@@ -38,7 +38,6 @@ export default async function Investor1099Page({
   const { data: org } = await supabase
     .from("org_settings")
     .select("org_name")
-    .eq("id", 1)
     .single();
 
   const { data: investor } = await supabase

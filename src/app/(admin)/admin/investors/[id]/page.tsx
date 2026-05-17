@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createOrgAdminClient } from "@/lib/supabase/admin";
+import { getCaller } from "@/lib/auth/require-staff";
 import { decryptFieldSafe } from "@/lib/crypto";
 import { InvestorEditForm } from "./investor-edit-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,7 +51,8 @@ export default async function InvestorDetailPage({
   if (!investor) notFound();
 
   // tax_id_encrypted is column-grant-restricted to service_role.
-  const admin = createAdminClient();
+  const caller = await getCaller();
+  const admin = createOrgAdminClient(caller.orgId);
   let taxIdLastFour: string | null = null;
   if (admin) {
     const { data: pii } = await admin

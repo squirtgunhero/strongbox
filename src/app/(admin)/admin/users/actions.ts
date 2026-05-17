@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createOrgAdminClient } from "@/lib/supabase/admin";
+import { getOrgSettings } from "@/lib/org-settings";
 import { requireAdmin } from "@/lib/auth/require-staff";
 import { queueNotification } from "@/lib/notifications";
 import { Resend } from "resend";
@@ -70,16 +71,13 @@ function selfHostedRecoveryUrl(appBase: string, hashedToken: string): string {
 async function loadOrgName(
   supabase: Awaited<ReturnType<typeof createClient>>
 ): Promise<string> {
-  const { data } = await supabase
-    .from("org_settings")
-    .select("org_name")
-    .eq("id", 1)
-    .single();
-  return data?.org_name || "StrongBox";
+  // org_settings is one row per org; RLS scopes it to the caller's org.
+  const settings = await getOrgSettings(supabase);
+  return (settings?.org_name as string) || "StrongBox";
 }
 
-function requireAdminClient() {
-  const admin = createAdminClient();
+function requireOrgAdminClient(orgId: string) {
+  const admin = createOrgAdminClient(orgId);
   if (!admin) {
     throw new Error(
       "Server is missing SUPABASE_SERVICE_ROLE_KEY. Add it in env and redeploy."
@@ -92,7 +90,7 @@ const STAFF_ROLES: UserRole[] = ["admin", "loan_officer"];
 
 export async function inviteStaff(formData: FormData) {
   const caller = await requireAdmin();
-  const admin = requireAdminClient();
+  const admin = requireOrgAdminClient(caller.orgId);
   const supabase = await createClient();
 
   const fullName = String(formData.get("full_name") || "").trim();
@@ -110,7 +108,7 @@ export async function inviteStaff(formData: FormData) {
   // Create user without triggering Supabase's built-in invite email.
   // We send our own branded email via Resend instead.
   let invitedUser: { id: string } | undefined;
-  const { data: existing } = await admin.auth.admin.listUsers();
+  const { data: existing } = await admin.raw.auth.admin.listUsers();
   const existingUser = existing?.users?.find(
     (u) => u.email?.toLowerCase() === email
   );
@@ -119,7 +117,7 @@ export async function inviteStaff(formData: FormData) {
     invitedUser = existingUser;
   } else {
     const { data: created, error: createError } =
-      await admin.auth.admin.createUser({
+      await admin.raw.auth.admin.createUser({
         email,
         email_confirm: false,
         user_metadata: { role },
@@ -130,7 +128,7 @@ export async function inviteStaff(formData: FormData) {
   if (!invitedUser) throw new Error("Failed to create user");
 
   const { data: linkData, error: linkError } =
-    await admin.auth.admin.generateLink({
+    await admin.raw.auth.admin.generateLink({
       type: "recovery",
       email,
       options: { redirectTo: `${appBase}/reset-password` },
@@ -216,7 +214,7 @@ export async function changeUserRole(userId: string, newRole: UserRole) {
   if (caller.userId === userId) {
     throw new Error("You cannot change your own role");
   }
-  const admin = requireAdminClient();
+  const admin = requireOrgAdminClient(caller.orgId);
 
   const { data: target } = await admin
     .from("profiles")
@@ -275,12 +273,12 @@ export async function setUserDisabled(userId: string, disabled: boolean) {
   if (caller.userId === userId) {
     throw new Error("You cannot disable your own account");
   }
-  const admin = requireAdminClient();
+  const admin = requireOrgAdminClient(caller.orgId);
 
   // 876000h ≈ 100 years; Supabase requires a duration string and uses "none"
   // to clear the ban.
   const ban_duration = disabled ? "876000h" : "none";
-  const { error } = await admin.auth.admin.updateUserById(userId, {
+  const { error } = await admin.raw.auth.admin.updateUserById(userId, {
     ban_duration,
   });
   if (error) throw new Error(error.message);
@@ -302,7 +300,7 @@ export async function deleteUser(userId: string) {
   if (caller.userId === userId) {
     throw new Error("You cannot delete your own account");
   }
-  const admin = requireAdminClient();
+  const admin = requireOrgAdminClient(caller.orgId);
 
   const { data: target } = await admin
     .from("profiles")
@@ -339,10 +337,10 @@ export async function deleteUser(userId: string) {
   // fall back to a permanent deactivation that preserves audit integrity:
   // ban the login and anonymize the profile.
   let mode: "hard" | "deactivated" = "hard";
-  const { error: delErr } = await admin.auth.admin.deleteUser(userId);
+  const { error: delErr } = await admin.raw.auth.admin.deleteUser(userId);
   if (delErr) {
     mode = "deactivated";
-    const { error: banErr } = await admin.auth.admin.updateUserById(userId, {
+    const { error: banErr } = await admin.raw.auth.admin.updateUserById(userId, {
       ban_duration: "876000h",
     });
     if (banErr) throw new Error(banErr.message);
@@ -376,16 +374,16 @@ export async function resetUserMfa(userId: string) {
   if (caller.userId === userId) {
     throw new Error("You cannot reset your own MFA from here. Use the security page.");
   }
-  const admin = requireAdminClient();
+  const admin = requireOrgAdminClient(caller.orgId);
 
   const { data: factorsData, error: listErr } =
-    await admin.auth.admin.mfa.listFactors({ userId });
+    await admin.raw.auth.admin.mfa.listFactors({ userId });
   if (listErr) throw new Error(listErr.message);
 
   const factors = factorsData?.factors ?? [];
   let removed = 0;
   for (const f of factors) {
-    const { error: delErr } = await admin.auth.admin.mfa.deleteFactor({
+    const { error: delErr } = await admin.raw.auth.admin.mfa.deleteFactor({
       userId,
       id: f.id,
     });
@@ -407,7 +405,7 @@ export async function resetUserMfa(userId: string) {
 
 export async function sendPasswordResetForUser(userId: string) {
   const caller = await requireAdmin();
-  const admin = requireAdminClient();
+  const admin = requireOrgAdminClient(caller.orgId);
   const supabase = await createClient();
 
   const { data: profile } = await admin
@@ -419,7 +417,7 @@ export async function sendPasswordResetForUser(userId: string) {
 
   const appBase = await getAppBaseUrl();
   const { data: linkData, error: linkError } =
-    await admin.auth.admin.generateLink({
+    await admin.raw.auth.admin.generateLink({
       type: "recovery",
       email: profile.email,
       options: { redirectTo: `${appBase}/reset-password` },
@@ -434,7 +432,7 @@ export async function sendPasswordResetForUser(userId: string) {
     resetUrl: actionLink,
     orgName,
   });
-  await queueNotification(supabase, {
+  await queueNotification(caller.orgId, {
     recipientEmail: profile.email,
     recipientUserId: userId,
     subject: tpl.subject,
@@ -456,7 +454,7 @@ export async function sendPasswordResetForUser(userId: string) {
 
 export async function resendInvite(userId: string) {
   const caller = await requireAdmin();
-  const admin = requireAdminClient();
+  const admin = requireOrgAdminClient(caller.orgId);
   const supabase = await createClient();
 
   const { data: profile } = await admin
@@ -467,7 +465,7 @@ export async function resendInvite(userId: string) {
   if (!profile?.email) throw new Error("User has no email on file");
 
   const { data: authUser, error: authErr } =
-    await admin.auth.admin.getUserById(userId);
+    await admin.raw.auth.admin.getUserById(userId);
   if (authErr) throw new Error(authErr.message);
   if (authUser?.user?.last_sign_in_at) {
     throw new Error("User has already signed in — send a password reset instead");
@@ -475,7 +473,7 @@ export async function resendInvite(userId: string) {
 
   const appBase = await getAppBaseUrl();
   const { data: linkData, error: linkError } =
-    await admin.auth.admin.generateLink({
+    await admin.raw.auth.admin.generateLink({
       type: "recovery",
       email: profile.email,
       options: { redirectTo: `${appBase}/reset-password` },

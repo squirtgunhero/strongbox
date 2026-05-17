@@ -1,10 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
+import { getOrgSettings } from "@/lib/org-settings";
 
 export type StaffRole = "admin" | "loan_officer";
 export type AnyRole = StaffRole | "investor" | "borrower";
 
 export interface AuthenticatedCaller {
   userId: string;
+  /** The lending-shop organization this user belongs to. */
+  orgId: string;
   email: string | null;
   role: AnyRole;
   fullName: string | null;
@@ -39,10 +42,13 @@ export async function getCaller(): Promise<AuthenticatedCaller> {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("role, full_name, email")
+    .select("role, full_name, email, org_id")
     .eq("id", user.id)
     .single();
   if (error || !profile) throw new Error("Unauthorized: profile not found");
+  if (!profile.org_id) {
+    throw new Error("Unauthorized: profile has no organization");
+  }
 
   // Authenticator assurance level: aal2 means MFA-verified for this session.
   // We don't fail open on errors — better to treat unknown as aal1 (no MFA).
@@ -60,6 +66,7 @@ export async function getCaller(): Promise<AuthenticatedCaller> {
 
   return {
     userId: user.id,
+    orgId: profile.org_id as string,
     email: profile.email ?? user.email ?? null,
     role: profile.role as AnyRole,
     fullName: profile.full_name ?? null,
@@ -83,11 +90,7 @@ export async function requireStaff(): Promise<AuthenticatedCaller> {
   }
 
   const supabase = await createClient();
-  const { data: settings } = await supabase
-    .from("org_settings")
-    .select("require_mfa_for_staff")
-    .eq("id", 1)
-    .single();
+  const settings = await getOrgSettings(supabase);
   if (settings?.require_mfa_for_staff && caller.aal !== "aal2") {
     throw new MfaRequiredError(
       caller.hasMfaEnrolled
@@ -109,11 +112,7 @@ export async function requireAdmin(): Promise<AuthenticatedCaller> {
     throw new Error("Forbidden: admin role required");
   }
   const supabase = await createClient();
-  const { data: settings } = await supabase
-    .from("org_settings")
-    .select("require_mfa_for_staff")
-    .eq("id", 1)
-    .single();
+  const settings = await getOrgSettings(supabase);
   if (settings?.require_mfa_for_staff && caller.aal !== "aal2") {
     throw new MfaRequiredError();
   }

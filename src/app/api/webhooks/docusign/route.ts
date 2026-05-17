@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
-import { getSupabaseUrl } from "@/lib/supabase/env";
+import {
+  createUnscopedAdminClient,
+  createOrgAdminClient,
+} from "@/lib/supabase/admin";
 
 /**
  * DocuSign Connect webhook handler. Configure in the DocuSign admin:
@@ -66,15 +68,26 @@ export async function POST(request: NextRequest) {
     return new Response("OK (no envelope id)", { status: 200 });
   }
 
-  const supabaseUrl = getSupabaseUrl();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceKey) {
+  const unscoped = createUnscopedAdminClient();
+  if (!unscoped) {
     console.error("[docusign-webhook] missing service role key");
     return new Response("Server misconfiguration", { status: 500 });
   }
-  const supabase = createClient(supabaseUrl, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+
+  // No session on a webhook: resolve the owning org from the matched
+  // signature_requests row, then write through the org-scoped client.
+  const { data: sigRow } = await unscoped
+    .from("signature_requests")
+    .select("id, org_id")
+    .eq("provider_envelope_id", envelopeId)
+    .maybeSingle();
+  if (!sigRow) {
+    return new Response("OK (no matching envelope)", { status: 200 });
+  }
+  const supabase = createOrgAdminClient(sigRow.org_id as string);
+  if (!supabase) {
+    return new Response("Server misconfiguration", { status: 500 });
+  }
 
   const event = (payload.event || "").toLowerCase();
   const now = new Date().toISOString();

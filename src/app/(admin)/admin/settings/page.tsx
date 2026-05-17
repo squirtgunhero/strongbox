@@ -22,7 +22,6 @@ export default async function SettingsPage() {
   const { data: settings } = await supabase
     .from("org_settings")
     .select("*")
-    .eq("id", 1)
     .single();
 
   return (

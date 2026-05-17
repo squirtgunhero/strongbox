@@ -15,7 +15,6 @@ export async function createLoan(formData: FormData) {
   const { data: settings } = await supabase
     .from("org_settings")
     .select("licensed_states")
-    .eq("id", 1)
     .single();
   const licensedStates: string[] = settings?.licensed_states || [];
   if (licensedStates.length > 0 && !licensedStates.includes(state)) {
@@ -198,7 +197,7 @@ export async function updateLoanStatus(loanId: string, newStatus: string) {
       };
       const msg = messages[newStatus];
       if (msg) {
-        await queueNotification(supabase, {
+        await queueNotification(caller.orgId, {
           channel: "email",
           recipientEmail: primary.borrower.email,
           recipientUserId: primary.borrower.user_id,

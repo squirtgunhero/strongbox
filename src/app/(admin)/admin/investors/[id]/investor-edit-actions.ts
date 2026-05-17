@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createOrgAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/auth/require-staff";
 import { encryptField } from "@/lib/crypto";
@@ -50,8 +50,10 @@ export async function updateInvestor(
     update.tax_id_encrypted = await encryptField(digits);
   }
 
+  // Org-scoped: bypasses the encrypted-column grant but the wrapper keeps
+  // the UPDATE constrained to caller.orgId.
   const hasEncryptedWrite = "tax_id_encrypted" in update;
-  const writer = hasEncryptedWrite ? createAdminClient() : null;
+  const writer = hasEncryptedWrite ? createOrgAdminClient(caller.orgId) : null;
   if (hasEncryptedWrite && !writer) {
     throw new Error("Service role not configured");
   }

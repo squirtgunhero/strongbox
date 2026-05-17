@@ -1,21 +1,19 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createOrgAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { borrowerDisplayName } from "@/lib/format";
 import { requireStaff } from "@/lib/auth/require-staff";
 import { queueNotification } from "@/lib/notifications";
 import { inviteEmailTemplate } from "@/lib/emails/templates";
+import { getOrgSettings } from "@/lib/org-settings";
 
 async function loadOrgName(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data } = await supabase
-    .from("org_settings")
-    .select("org_name")
-    .eq("id", 1)
-    .single();
-  return data?.org_name || "StrongBox";
+  // org_settings is one row per org; RLS scopes it to the caller's org.
+  const settings = await getOrgSettings(supabase);
+  return (settings?.org_name as string) || "StrongBox";
 }
 
 /**
@@ -76,7 +74,9 @@ export async function inviteBorrower(borrowerId: string) {
   const caller = await requireStaff();
   const supabase = await createClient();
 
-  const admin = createAdminClient();
+  // Org-scoped: the invited user inherits the inviter's org (the wrapper
+  // stamps org_id on the profile/borrower/audit writes below).
+  const admin = createOrgAdminClient(caller.orgId);
   if (!admin) {
     throw new Error(
       "Server is missing SUPABASE_SERVICE_ROLE_KEY. Add it in env and redeploy to enable email invites."
@@ -97,7 +97,7 @@ export async function inviteBorrower(borrowerId: string) {
   // send a branded version via Resend below.
   const appBase = await getAppBaseUrl();
   const { data: linkData, error: linkError } =
-    await admin.auth.admin.generateLink({
+    await admin.raw.auth.admin.generateLink({
       type: "invite",
       email: borrower.email,
       options: {
@@ -145,7 +145,7 @@ export async function inviteBorrower(borrowerId: string) {
     inviteUrl: actionLink,
     orgName,
   });
-  await queueNotification(supabase, {
+  await queueNotification(caller.orgId, {
     recipientEmail: borrower.email,
     recipientUserId: invitedUser.id,
     subject: tpl.subject,
@@ -163,7 +163,8 @@ export async function inviteInvestor(investorId: string) {
   const caller = await requireStaff();
   const supabase = await createClient();
 
-  const admin = createAdminClient();
+  // Org-scoped: the invited investor user inherits the inviter's org.
+  const admin = createOrgAdminClient(caller.orgId);
   if (!admin) {
     throw new Error(
       "Server is missing SUPABASE_SERVICE_ROLE_KEY. Add it in env and redeploy to enable email invites."
@@ -181,7 +182,7 @@ export async function inviteInvestor(investorId: string) {
 
   const appBase = await getAppBaseUrl();
   const { data: linkData, error: linkError } =
-    await admin.auth.admin.generateLink({
+    await admin.raw.auth.admin.generateLink({
       type: "invite",
       email: investor.email,
       options: {
@@ -229,7 +230,7 @@ export async function inviteInvestor(investorId: string) {
     inviteUrl: actionLink,
     orgName,
   });
-  await queueNotification(supabase, {
+  await queueNotification(caller.orgId, {
     recipientEmail: investor.email,
     recipientUserId: invitedUser.id,
     subject: tpl.subject,

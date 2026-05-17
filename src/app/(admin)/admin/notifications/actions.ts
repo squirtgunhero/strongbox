@@ -20,7 +20,7 @@ export async function flushPending() {
     throw new Error("Not authorized");
   }
 
-  const result = await sendPendingNotifications(supabase);
+  const result = await sendPendingNotifications();
   revalidatePath("/admin/notifications");
   return result;
 }

@@ -150,7 +150,7 @@ export async function recordPayment(loanId: string, formData: FormData) {
             Number(pos.percentage)
           );
           if (share <= 0 || !pos.investor?.email) continue;
-          await queueNotification(supabase, {
+          await queueNotification(caller.orgId, {
             channel: "email",
             recipientEmail: pos.investor.email,
             recipientUserId: pos.investor.user_id,

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createOrgAdminClient } from "@/lib/supabase/admin";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -81,14 +81,16 @@ export default async function UsersPage({
 
   const { data: callerProfile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, org_id")
     .eq("id", user.id)
     .single();
   if (!callerProfile || callerProfile.role !== "admin") {
     redirect("/admin");
   }
 
-  const admin = createAdminClient();
+  // Org-scoped: this page lists users; the wrapper constrains the listing
+  // to the admin's own org so it can't enumerate other orgs' users.
+  const admin = createOrgAdminClient(callerProfile.org_id);
   if (!admin) {
     return (
       <div className="space-y-4">
@@ -107,15 +109,22 @@ export default async function UsersPage({
       .from("profiles")
       .select("id, full_name, email, role, created_at")
       .order("created_at", { ascending: false }),
-    admin.auth.admin.listUsers({ perPage: 1000 }),
-    admin
+    admin.raw.auth.admin.listUsers({ perPage: 1000 }),
+    admin.raw
       .schema("auth")
       .from("mfa_factors")
       .select("user_id, status")
       .eq("status", "verified"),
   ]);
 
-  const profiles = profilesRes.data ?? [];
+  type ProfileRow = {
+    id: string;
+    full_name: string | null;
+    email: string | null;
+    role: string;
+    created_at: string;
+  };
+  const profiles = (profilesRes.data ?? []) as ProfileRow[];
   const authUsers = authUsersRes.data?.users ?? [];
   const authById = new Map(authUsers.map((u) => [u.id, u]));
   const mfaUserIds = new Set(

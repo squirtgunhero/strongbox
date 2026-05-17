@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createOrgAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/auth/require-staff";
 import { encryptField } from "@/lib/crypto";
@@ -71,8 +71,11 @@ export async function updateBorrower(
   // requireStaff above gates who can reach this code path.
   const hasEncryptedWrite =
     "ssn_encrypted" in update || "ein_encrypted" in update;
+  // Org-scoped service client: bypasses the column-level grant on the
+  // encrypted columns but the wrapper still constrains the UPDATE to
+  // caller.orgId, so staff can't write PII onto another org's borrower.
   const writer = hasEncryptedWrite
-    ? createAdminClient()
+    ? createOrgAdminClient(caller.orgId)
     : null;
   if (hasEncryptedWrite && !writer) {
     throw new Error("Service role not configured");

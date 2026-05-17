@@ -1,7 +1,9 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import twilio from "twilio";
-import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  createOrgAdminClient,
+  createUnscopedAdminClient,
+} from "@/lib/supabase/admin";
 
 interface QueueArgs {
   channel?: "email" | "sms" | "in_app";
@@ -64,10 +66,13 @@ async function sendSms(
  * parent action.
  */
 export async function queueNotification(
-  _supabase: SupabaseClient,
+  orgId: string,
   args: QueueArgs
 ): Promise<void> {
-  const admin = createAdminClient();
+  // Org-scoped: the wrapper stamps org_id on the notifications insert so
+  // the row lands in the right shop and satisfies the enforce_org_id
+  // trigger. Callers must pass the owning org's id.
+  const admin = createOrgAdminClient(orgId);
   if (!admin) {
     console.error("queueNotification: admin client not available");
     return;
@@ -158,12 +163,15 @@ export async function queueNotification(
 /**
  * Retry pending notifications. Called by cron or an admin "Resend pending"
  * button to push anything left over (e.g. queued while API key was missing).
+ *
+ * This is a platform-level delivery worker: it only re-sends already-created
+ * rows and updates their status by primary key, so it intentionally runs
+ * unscoped across all orgs rather than for one org.
  */
 export async function sendPendingNotifications(
-  _supabase: SupabaseClient,
   limit = 50
 ): Promise<{ sent: number; failed: number }> {
-  const admin = createAdminClient();
+  const admin = createUnscopedAdminClient();
   if (!admin) return { sent: 0, failed: 0 };
 
   const { data: pending } = await admin

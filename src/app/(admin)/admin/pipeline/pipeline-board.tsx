@@ -67,12 +67,7 @@ export function PipelineBoard({ initialLoans }: { initialLoans: PipelineLoan[] }
     setDraggingId(loanId);
   }
 
-  async function handleDrop(stage: LoanStatus) {
-    if (!draggingId) return;
-    const loan = loans.find((l) => l.id === draggingId);
-    setDraggingId(null);
-    setHoverStage(null);
-    if (!loan) return;
+  async function moveLoanToStage(loan: PipelineLoan, stage: LoanStatus) {
     if (loan.status === stage) return;
 
     const allowed = ALLOWED_MOVES[loan.status]?.includes(stage);
@@ -83,27 +78,36 @@ export function PipelineBoard({ initialLoans }: { initialLoans: PipelineLoan[] }
       return;
     }
 
+    const from = loan.status;
+
     // Optimistic update
     setLoans((prev) =>
-      prev.map((l) => (l.id === draggingId ? { ...l, status: stage } : l))
+      prev.map((l) => (l.id === loan.id ? { ...l, status: stage } : l))
     );
 
     try {
-      await moveLoan(draggingId, stage);
+      await moveLoan(loan.id, stage);
       toast.success(`Moved to ${LOAN_STATUS_LABELS[stage]}`);
     } catch (e) {
       // Roll back
       setLoans((prev) =>
-        prev.map((l) =>
-          l.id === draggingId ? { ...l, status: loan.status } : l
-        )
+        prev.map((l) => (l.id === loan.id ? { ...l, status: from } : l))
       );
       toast.error(e instanceof Error ? e.message : "Failed to move loan");
     }
   }
 
+  async function handleDrop(stage: LoanStatus) {
+    if (!draggingId) return;
+    const loan = loans.find((l) => l.id === draggingId);
+    setDraggingId(null);
+    setHoverStage(null);
+    if (!loan) return;
+    await moveLoanToStage(loan, stage);
+  }
+
   return (
-    <div className="grid grid-cols-5 gap-3 min-w-0">
+    <div className="flex flex-col gap-3 min-w-0 lg:grid lg:grid-cols-5">
       {PIPELINE_STAGES.map((stage) => {
         const stageLoans = byStage[stage] || [];
         const total = stageLoans.reduce(
@@ -125,7 +129,7 @@ export function PipelineBoard({ initialLoans }: { initialLoans: PipelineLoan[] }
         return (
           <div
             key={stage}
-            className={`flex flex-col gap-2 min-w-0 min-h-[320px] rounded-xl p-2.5 transition-colors ${
+            className={`flex flex-col gap-2 min-w-0 rounded-xl p-2.5 transition-colors lg:min-h-[320px] ${
               isHovered
                 ? "bg-primary/5 outline outline-1 outline-dashed outline-primary"
                 : "bg-muted"
@@ -155,7 +159,8 @@ export function PipelineBoard({ initialLoans }: { initialLoans: PipelineLoan[] }
             <div className="flex flex-col gap-2">
               {stageLoans.length === 0 ? (
                 <div className="rounded-md border border-dashed bg-background py-5 text-center text-xs text-muted-foreground">
-                  Drop here
+                  <span className="lg:hidden">No deals</span>
+                  <span className="hidden lg:inline">Drop here</span>
                 </div>
               ) : (
                 stageLoans.map((loan) => {
@@ -228,6 +233,20 @@ export function PipelineBoard({ initialLoans }: { initialLoans: PipelineLoan[] }
                             {formatRate(loan.interest_rate)}
                           </div>
                         </Link>
+                        {ALLOWED_MOVES[loan.status]?.length ? (
+                          <div className="flex flex-wrap gap-1.5 lg:hidden">
+                            {ALLOWED_MOVES[loan.status].map((target) => (
+                              <button
+                                key={target}
+                                type="button"
+                                onClick={() => moveLoanToStage(loan, target)}
+                                className="rounded-md border bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground active:bg-muted"
+                              >
+                                Move to {LOAN_STATUS_LABELS[target]}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
                       </Card>
                     </div>
                   );

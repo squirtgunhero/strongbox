@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { LoansFilter } from "./loans-filter";
 import { LoansTable } from "./loans-table";
 import { ExportButton } from "./export-button";
+import { LoanImportPanel } from "./import-panel";
 import { Plus } from "lucide-react";
 
 export default async function LoansPage({
@@ -168,6 +169,8 @@ export default async function LoansPage({
           </Button>
         </div>
       </div>
+
+      <LoanImportPanel />
 
       <LoansFilter staff={staff || []} tagOptions={tagOptions} />
 

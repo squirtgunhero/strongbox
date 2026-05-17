@@ -13,6 +13,7 @@ import {
 import { borrowerDisplayName, formatDate } from "@/lib/format";
 import { ListSearch } from "@/components/list-search";
 import { Users } from "lucide-react";
+import { BorrowerImportPanel } from "./import-panel";
 
 export default async function BorrowersPage({
   searchParams,
@@ -42,6 +43,7 @@ export default async function BorrowersPage({
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Borrowers</h1>
+      <BorrowerImportPanel />
       <ListSearch placeholder="Search by name, email, or phone..." />
 
       <div className="rounded-md border">

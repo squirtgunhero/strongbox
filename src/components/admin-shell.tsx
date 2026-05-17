@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AdminHeader } from "@/components/admin-header";
 import { AdminSidebar } from "@/components/admin-sidebar";
+import { cn } from "@/lib/utils";
 
 interface AdminShellProps {
   profile: { full_name: string; role: string; email: string };
@@ -49,7 +50,15 @@ export function AdminShell({ profile, children }: AdminShellProps) {
         onClose={() => setIsSidebarOpen(false)}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 flex-col origin-left transition-all duration-300 ease-out",
+          // Subtle iOS-style "app recedes behind the drawer" effect — mobile
+          // only (on lg+ the sidebar is static, so no transform).
+          isSidebarOpen &&
+            "max-lg:overflow-hidden max-lg:rounded-2xl max-lg:shadow-2xl max-lg:[transform:perspective(1200px)_rotateY(-4deg)_scale(0.94)_translateX(10px)]"
+        )}
+      >
         <AdminHeader
           profile={profile}
           onMenuToggle={() => setIsSidebarOpen((current) => !current)}

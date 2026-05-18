@@ -1,6 +1,6 @@
 /**
  * Fixed id of the reserved "StrongBox Platform" organization seeded in
- * db/migrations/037_platform_admins.sql. Used to stamp platform-level
+ * db/migrations/038_platform_admins.sql. Used to stamp platform-level
  * audit entries (backup crons, support-session events) that belong to no
  * customer org. Must stay in sync with that migration.
  *

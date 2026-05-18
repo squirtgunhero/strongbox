@@ -48,7 +48,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v2
         with:
           version: latest
 

@@ -248,3 +248,105 @@ begin
 end $$;
 
 rollback;
+
+
+-- ===========================================================================
+-- Investor isolation regression (migration 007). An investor must see only:
+--   • their own investor record (not other investors')
+--   • their own positions
+--   • loans they hold a position in (not other loans)
+--   • their own distributions (not other investors')
+-- ===========================================================================
+begin;
+
+do $$
+declare
+  v_ivy   uuid := 'a1111111-1111-1111-1111-a11111111111';
+  v_walt  uuid := 'b2222222-2222-2222-2222-b22222222222';
+  v_ivy_i uuid := 'a3333333-3333-3333-3333-a33333333333';
+  v_walt_i uuid := 'b4444444-4444-4444-4444-b44444444444';
+  v_pa uuid := 'aaaa1111-aaaa-1111-aaaa-1111aaaa1111';
+  v_pb uuid := 'bbbb2222-bbbb-2222-bbbb-2222bbbb2222';
+  v_pc uuid := 'cccc3333-cccc-3333-cccc-3333cccc3333';
+  v_la uuid := 'a5555555-5555-5555-5555-a55555555555';
+  v_lb uuid := 'b6666666-6666-6666-6666-b66666666666';
+  v_lc uuid := 'c7777777-7777-7777-7777-c77777777777';
+  v_count int;
+begin
+  insert into auth.users (id, email, encrypted_password, email_confirmed_at, instance_id, aud, role)
+  values
+    (v_ivy,  'rls-ivy@test.local',  'fake', now(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'),
+    (v_walt, 'rls-walt@test.local', 'fake', now(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated')
+  on conflict (id) do nothing;
+
+  insert into profiles (id, role, full_name, email) values
+    (v_ivy,  'investor', 'Ivy RLS',  'rls-ivy@test.local'),
+    (v_walt, 'investor', 'Walt RLS', 'rls-walt@test.local')
+  on conflict (id) do nothing;
+
+  insert into properties (id, address_street, address_city, address_state, address_zip) values
+    (v_pa, '1 Ivy Ct',  'Newark', 'NJ', '07101'),
+    (v_pb, '2 Walt Ct', 'Newark', 'NJ', '07101'),
+    (v_pc, '3 None Ct', 'Newark', 'NJ', '07101')
+  on conflict (id) do nothing;
+
+  insert into loans (id, property_id, status, loan_amount, current_principal, interest_rate, term_months) values
+    (v_la, v_pa, 'active', 200000, 200000, 0.12, 12),
+    (v_lb, v_pb, 'active', 300000, 300000, 0.11, 12),
+    (v_lc, v_pc, 'active', 400000, 400000, 0.10, 12)
+  on conflict (id) do nothing;
+
+  insert into investors (id, user_id, investor_type, full_name, email) values
+    (v_ivy_i,  v_ivy,  'individual', 'Ivy RLS',  'rls-ivy@test.local'),
+    (v_walt_i, v_walt, 'individual', 'Walt RLS', 'rls-walt@test.local')
+  on conflict (id) do nothing;
+
+  -- Ivy positioned on loan A only; Walt on loan B only; loan C has none.
+  insert into investor_positions (investor_id, loan_id, amount, percentage) values
+    (v_ivy_i,  v_la, 50000, 0.25),
+    (v_walt_i, v_lb, 60000, 0.20)
+  on conflict (investor_id, loan_id) do nothing;
+
+  insert into investor_distributions (investor_id, loan_id, amount, distribution_date) values
+    (v_ivy_i,  v_la, 1000, current_date),
+    (v_walt_i, v_lb, 2000, current_date);
+
+  -- Impersonate Ivy.
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims',
+    '{"sub":"' || v_ivy::text || '","role":"authenticated"}', true);
+
+  -- ASSERTION 1: Ivy sees only her positioned loan (A), not B or C.
+  select count(*) into v_count from loans where id in (v_la, v_lb, v_lc);
+  if v_count <> 1 then
+    raise exception 'INVESTOR RLS FAIL: Ivy should see 1 of the 3 test loans, saw %', v_count;
+  end if;
+  select count(*) into v_count from loans where id = v_la;
+  if v_count <> 1 then
+    raise exception 'INVESTOR RLS FAIL: Ivy cannot see her own positioned loan';
+  end if;
+
+  -- ASSERTION 2: Ivy sees only her own investor record.
+  select count(*) into v_count from investors where id = v_walt_i;
+  if v_count <> 0 then
+    raise exception 'INVESTOR RLS FAIL: Ivy can see Walt''s investor record';
+  end if;
+
+  -- ASSERTION 3: Ivy sees only her own positions.
+  select count(*) into v_count from investor_positions where investor_id = v_walt_i;
+  if v_count <> 0 then
+    raise exception 'INVESTOR RLS FAIL: Ivy can see Walt''s positions';
+  end if;
+
+  -- ASSERTION 4: Ivy cannot see Walt's distributions.
+  select count(*) into v_count from investor_distributions where investor_id = v_walt_i;
+  if v_count <> 0 then
+    raise exception 'INVESTOR RLS FAIL: Ivy can see Walt''s distributions';
+  end if;
+
+  execute 'reset role';
+
+  raise notice 'Investor isolation regression: ALL ASSERTIONS PASSED';
+end $$;
+
+rollback;

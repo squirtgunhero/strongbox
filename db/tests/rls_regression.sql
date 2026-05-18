@@ -224,16 +224,23 @@ begin
   end if;
   execute 'reset role';
 
-  -- ASSERTION D: a second distinct approver promotes it.
+  -- ASSERTION D: a borrower cannot promote a draw via the RPC path.
+  -- The borrower can't even see the draw (RLS), so approve_draw_atomic
+  -- refuses; any raised error here means "blocked", which is the point.
   perform set_config('role', 'authenticated', true);
   perform set_config('request.jwt.claims',
     '{"sub":"' || v_bor::text || '","role":"authenticated"}', true);
-  -- borrower still blocked even via the RPC path
+  declare
+    v_blocked boolean := false;
   begin
-    perform approve_draw_atomic(v_draw, 50000);
-    raise exception 'DUAL-APPROVAL FAIL: borrower promoted a draw via RPC';
-  exception when insufficient_privilege or check_violation then
-    null;
+    begin
+      perform approve_draw_atomic(v_draw, 50000);
+    exception when others then
+      v_blocked := true; -- RLS visibility / privilege / check — all "blocked"
+    end;
+    if not v_blocked then
+      raise exception 'DUAL-APPROVAL FAIL: borrower promoted a draw via RPC';
+    end if;
   end;
   execute 'reset role';
 

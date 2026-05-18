@@ -1,0 +1,33 @@
+name: Migrate
+
+# Applies pending database migrations on push to main, so schema changes are
+# never tribal knowledge. Runs in parallel with the Vercel deploy; migrations
+# must remain backward-compatible (the existing convention).
+#
+# Inert until the SUPABASE_DB_URL repository secret is configured — the runner
+# exits 0 with a notice if it is missing, so this never blocks.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: migrate-main
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: migrate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Apply pending migrations
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: npm run migrate
